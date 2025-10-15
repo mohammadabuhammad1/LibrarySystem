@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="9.0.6" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.6" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.6" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.6" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<NoWarn>CA1812</NoWarn>
+		<NoWarn>CA1515</NoWarn>
+		<UserSecretsId>d2caec2e-32a1-4031-85db-ffaae29b2132</UserSecretsId>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
+	</PropertyGroup>
+	
+	<ItemGroup>
+	  <ProjectReference Include="..\LibrarySystem.Application\LibrarySystem.Application.csproj" />
+	  <ProjectReference Include="..\LibrarySystem.Infrastructure\LibrarySystem.Infrastructure.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Middleware\" />
+	</ItemGroup>
+</Project>

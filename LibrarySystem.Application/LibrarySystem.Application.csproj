@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.10">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<Compile Remove="Dtos\CreateMemberDto.cs" />
+		<Compile Remove="Dtos\MemberDto.cs" />
+		<Compile Remove="Dtos\UpdateMemberDto.cs" />
+		<Compile Remove="Interfaces\IMemberService.cs" />
+		<Compile Remove="Services\MemberService.cs" />
+	</ItemGroup>
+	
+	<ItemGroup>
+	  <ProjectReference Include="..\LibrarySystem.Domain\LibrarySystem.Domain.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
+	</ItemGroup>
+			
+
+</Project>

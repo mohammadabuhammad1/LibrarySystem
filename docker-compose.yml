@@ -1,0 +1,27 @@
+services:
+  librarysystem.api:
+    build:
+      context: .
+      dockerfile: LibrarySystem.API/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__PostgreSQL=Host=db;Port=5432;Username=postgres;Password=1234;Database=LibrarySystem
+    depends_on:
+      - db
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: LibrarySystem
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
