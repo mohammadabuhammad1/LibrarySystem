@@ -14,6 +14,7 @@ namespace LibrarySystem.API.Controllers;
 public class BooksController(
     IBookService bookService,
     IBorrowRecordService borrowRecordService,
+    ILibraryService libraryService,
     UserManager<ApplicationUser> userManager) : BaseApiController(userManager)
 {
     // Get all 
@@ -72,6 +73,8 @@ public class BooksController(
     [Authorize(Roles = "Admin,Librarian")]
     public async Task<ActionResult<BookDto>> UpdateBook(int id, UpdateBookDto updateBookDto)
     {
+        ArgumentNullException.ThrowIfNull(updateBookDto); 
+
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
@@ -166,57 +169,45 @@ public class BooksController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [Authorize(Roles = "Admin,Librarian")]
-    public async Task<ActionResult<BookDto>> UpdateBookCopies(int id, [FromBody] int totalCopies)
+    public async Task<ActionResult<BookDto>> UpdateBookCopies(int id, [FromBody] UpdateBookCopiesDto updateDto)
     {
+        ArgumentNullException.ThrowIfNull(updateDto); 
+
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
         Console.WriteLine($"Book {id} copies updated by: {currentUser.Name}");
 
-        BookDto? existingBook = await bookService
-            .GetBookByIdAsync(id)
-            .ConfigureAwait(false);
-
-        if (existingBook == null)
-            return NotFound(new ApiResponse(404, $"Book with ID {id} not found"));
-
-        UpdateBookDto updateBookDto = new UpdateBookDto
+        try
         {
-            Title = existingBook.Title ?? string.Empty,
-            Author = existingBook.Author ?? string.Empty,
-            PublishedYear = existingBook.PublishedYear,
-            TotalCopies = totalCopies
-        };
-
-        BookDto? updatedBook = await bookService
-            .UpdateBookAsync(id, updateBookDto)
-            .ConfigureAwait(false);
-
-        return Ok(updatedBook);
+            // Use the new restock method for adding copies
+            if (updateDto.AdditionalCopies > 0)
+            {
+                BookDto bookDto = await libraryService.RestockBookAsync(id, updateDto.AdditionalCopies).ConfigureAwait(false);
+                return Ok(bookDto);
+            }
+            else
+            {
+                return BadRequest(new ApiResponse(400, "Use mark-damaged endpoint to reduce copies"));
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new ApiResponse(404, ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ApiResponse(400, ex.Message));
+        }
     }
 
-    [HttpGet("stats")]
+    [HttpGet("stats/{bookId:int}")] 
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
-    public async Task<ActionResult<object>> GetBooksStats()
+    public async Task<ActionResult<BookStatsDto>> GetBookStats(int bookId)
     {
-        IEnumerable<BookDto> allBooks = await bookService
-            .GetAllBooksAsync()
-            .ConfigureAwait(false);
-        IEnumerable<BookDto> availableBooks = await bookService
-            .GetAvailableBooksAsync()
-            .ConfigureAwait(false);
-
-        BookStatsDto stats = new BookStatsDto
-        {
-            TotalBooks = allBooks.Count(),
-            AvailableBooks = availableBooks.Count(),
-            BorrowedBooks = allBooks.Count() - availableBooks.Count(),
-            TotalCopies = allBooks.Sum(b => b.TotalCopies),
-            AvailableCopies = allBooks.Sum(b => b.CopiesAvailable)
-        };
-
+        BookStatsDto stats = await libraryService.GetBookStatsAsync(bookId).ConfigureAwait(false);
         return Ok(stats);
     }
 
@@ -287,31 +278,25 @@ public class BooksController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian")]
-    public async Task<ActionResult<BorrowRecordDto>> ReturnBook(int bookId)
+    public async Task<ActionResult<BorrowRecordDto>> ReturnBook(int bookId, [FromBody] ReturnBookDto returnDto) // Add parameter
     {
+
+        ArgumentNullException.ThrowIfNull(returnDto);
+
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
         Console.WriteLine($"Book return processed by: {currentUser.Name}");
 
-        BorrowRecordDto? activeBorrow = await borrowRecordService
-            .GetActiveBorrowByBookAsync(bookId)
-            .ConfigureAwait(false);
-
-        if (activeBorrow == null)
-            return BadRequest(new ApiResponse(400, "No active borrow record found for this book"));
-
-        ReturnBookDto returnDto = new ReturnBookDto
-        {
-            BookId = bookId,
-            UserId = activeBorrow.UserId,
-            Notes = $"Return processed by {currentUser.Name}"
-        };
+        returnDto.Notes = $"Return processed by {currentUser.Name}";
 
         BorrowRecordDto? borrowRecord = await borrowRecordService
             .ReturnBookAsync(returnDto)
             .ConfigureAwait(false);
+
+        if (borrowRecord == null)
+            return BadRequest(new ApiResponse(400, "Failed to return book"));
 
         return Ok(borrowRecord);
     }
@@ -331,5 +316,52 @@ public class BooksController(
         decimal totalFines = borrowHistory.Sum(b => b.FineAmount ?? 0);
 
         return Ok(totalFines);
+    }
+
+    [HttpPost("restock/{bookId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Librarian")]
+    public async Task<ActionResult<BookDto>> RestockBook(int bookId, [FromBody] int additionalCopies)
+    {
+        try
+        {
+            BookDto bookDto = await libraryService.RestockBookAsync(bookId, additionalCopies).ConfigureAwait(false); // Changed var to BookDto
+            return Ok(bookDto);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ApiResponse(400, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse(400, ex.Message));
+        }
+    }
+
+    [HttpPost("mark-damaged/{bookId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Librarian")]
+    public async Task<ActionResult<BookDto>> MarkBookAsDamaged(int bookId)
+    {
+        try
+        {
+            BookDto bookDto = await libraryService.MarkBookAsDamagedAsync(bookId).ConfigureAwait(false); // Changed var to BookDto
+            return Ok(bookDto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse(400, ex.Message));
+        }
+    }
+
+    [HttpGet("overall-stats")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    public async Task<ActionResult<OverallBookStatsDto>> GetOverallBooksStats()
+    {
+        OverallBookStatsDto stats = await bookService.GetOverallBookStatsAsync().ConfigureAwait(false);
+        return Ok(stats);
     }
 }

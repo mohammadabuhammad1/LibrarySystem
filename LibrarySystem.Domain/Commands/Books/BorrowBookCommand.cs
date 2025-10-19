@@ -1,6 +1,8 @@
-﻿namespace LibrarySystem.Application.Dtos.Books;
+﻿using LibrarySystem.Domain.Common;
 
-public class CreateBorrowRecordDto
+namespace LibrarySystem.Domain.Commands.Books;
+
+public class BorrowBookCommand : BaseCommand
 {
     public int BookId { get; set; }
     public string UserId { get; set; } = string.Empty;

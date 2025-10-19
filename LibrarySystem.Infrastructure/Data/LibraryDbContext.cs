@@ -1,5 +1,4 @@
 ﻿using LibrarySystem.Domain.Entities;
-using LibrarySystem.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -56,17 +55,31 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
             entity.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("NOW()");
         });
 
-        // BorrowRecord config
         builder.Entity<BorrowRecord>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.BorrowDate).IsRequired().HasDefaultValueSql("NOW()");
-            entity.Property(e => e.DueDate).IsRequired();
-            entity.Property(e => e.FineAmount).HasPrecision(10, 2);
-            entity.Property(e => e.Notes).HasMaxLength(500);
-            entity.HasOne(br => br.Book).WithMany(b => b.BorrowRecords).HasForeignKey(br => br.BookId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(br => br.User).WithMany(u => u.BorrowRecords).HasForeignKey(br => br.UserId).OnDelete(DeleteBehavior.Restrict);
-            entity.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("NOW()");
+            entity.HasKey(br => br.Id);
+
+            entity.HasOne(br => br.Book)
+                .WithMany(b => b.BorrowRecords)
+                .HasForeignKey(br => br.BookId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(br => br.User)
+                .WithMany(u => u.BorrowRecords)
+                .HasForeignKey(br => br.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(br => br.BookId).IsRequired();
+            entity.Property(br => br.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(br => br.BorrowDate).IsRequired();
+            entity.Property(br => br.DueDate).IsRequired();
+            entity.Property(br => br.IsReturned).IsRequired();
+            entity.Property(br => br.FineAmount).HasPrecision(18, 2);
+            entity.Property(br => br.Notes).HasMaxLength(1000);
+
+            entity.Property(br => br.Condition)
+                .HasConversion<string>()
+                .HasMaxLength(20);
         });
 
         builder.Entity<OrganizationUnit>(entity =>
@@ -135,5 +148,25 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
             entity.Property(e => e.Phone).HasMaxLength(50);
         });
 
+        builder.Entity<BorrowRecord>(entity =>
+        {
+            // Configure relationships
+            entity.HasOne(br => br.Book)
+                .WithMany(b => b.BorrowRecords)
+                .HasForeignKey(br => br.BookId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(br => br.User)
+                .WithMany(u => u.BorrowRecords)
+                .HasForeignKey(br => br.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure properties with private setters
+            entity.Property(br => br.BookId).IsRequired();
+            entity.Property(br => br.UserId).IsRequired();
+            entity.Property(br => br.BorrowDate).IsRequired();
+            entity.Property(br => br.DueDate).IsRequired();
+            entity.Property(br => br.IsReturned).IsRequired();
+        });
     }
 }

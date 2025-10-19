@@ -1,5 +1,4 @@
-﻿using LibrarySystem.Infrastructure.Services;
-using LibrarySystem.Application.Interfaces;
+﻿using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 using LibrarySystem.Application.OrganiztionUnits.Dtos;
@@ -7,7 +6,7 @@ using LibrarySystem.Application.OrganiztionUnits.Dtos;
 namespace LibrarySystem.Application.Services;
 public class OrganizationUnitService(
     IUnitOfWork unitOfWork,
-    OrganizationUnitCodeGenerator codeGenerator) : IOrganizationUnitService
+    IOrganizationUnitCodeGenerator codeGenerator) : IOrganizationUnitService
 {
     public async Task<OrganizationUnitDto?> GetByIdAsync(int id)
     {

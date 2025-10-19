@@ -1,19 +1,60 @@
-﻿using LibrarySystem.Domain.Entities;
+﻿using LibrarySystem.Domain.Common;
 
 namespace LibrarySystem.Domain.Entities;
 
-
 public class Library : BaseEntity
 {
-    public string Name { get; set; } = string.Empty;
-    public string Location { get; set; } = string.Empty;
-    public string? Description { get; set; }
+    public string Name { get; private set; } = string.Empty;
+    public string Location { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
 
+    public int OrganizationUnitId { get; private set; }
+    public OrganizationUnit? OrganizationUnit { get; }
 
-    public int OrganizationUnitId { get; set; }
-    public virtual OrganizationUnit OrganizationUnit { get; set; } = null!;
+    public ICollection<Book> Books { get; private set; } = [];
 
+    private Library() { }
 
-    // Navigation properties
-    public virtual ICollection<Book> Books { get;  } = [];
+    public static Library Create(string name, string location, string? description = null, int organizationUnitId = 0)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name is required", nameof(name));
+
+        if (string.IsNullOrWhiteSpace(location))
+            throw new ArgumentException("Location is required", nameof(location));
+
+        var library = new Library
+        {
+            Name = name.Trim(),
+            Location = location.Trim(),
+            Description = description?.Trim(),
+            OrganizationUnitId = organizationUnitId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return library;
+    }
+
+    public void Update(string name, string location, string? description = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentNullException(nameof(name), "Name is required");
+
+        if (string.IsNullOrWhiteSpace(location))
+            throw new ArgumentNullException(nameof(location), "Location is required");
+
+        Name = name.Trim();
+        Location = location.Trim();
+        Description = description?.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignOrganizationUnit(int ouId)
+    {
+        if (ouId <= 0)
+            throw new ArgumentException("OrganizationUnitId must be greater than 0", nameof(ouId));
+
+        OrganizationUnitId = ouId;
+    }
+
 }

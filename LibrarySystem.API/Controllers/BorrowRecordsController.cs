@@ -1,5 +1,4 @@
 ﻿using LibrarySystem.API.Errors;
-using LibrarySystem.Application.Dtos.Book;
 using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;

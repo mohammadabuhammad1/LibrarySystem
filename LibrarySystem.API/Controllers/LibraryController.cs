@@ -5,6 +5,7 @@ using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Reflection;
 
 namespace LibrarySystem.API.Controllers;
 
@@ -62,12 +63,11 @@ public class LibrariesController(ILibraryRepository libraryRepository, IBookRepo
         if (existingLibrary != null)
             return BadRequest(new ApiResponse(400, $"Library with name '{createLibraryDto.Name}' already exists"));
 
-        Library library = new Library
-        {
-            Name = createLibraryDto.Name,
-            Location = createLibraryDto.Location,
-            Description = createLibraryDto.Description
-        };
+        Library library = Library.Create(
+            createLibraryDto.Name,
+            createLibraryDto.Location,
+            createLibraryDto.Description,
+            createLibraryDto.OrganizationUnitId);
 
         Library createdLibrary = await libraryRepository.AddAsync(library).ConfigureAwait(false);
         return CreatedAtAction(nameof(GetLibraryById), new { id = createdLibrary.Id }, MapToLibraryDto(createdLibrary));
@@ -80,7 +80,6 @@ public class LibrariesController(ILibraryRepository libraryRepository, IBookRepo
     [Authorize(Roles = "Admin,Librarian")]
     public async Task<ActionResult<LibraryDto>> UpdateLibrary(int id, [FromBody] UpdateLibraryDto updateLibraryDto)
     {
-
         ArgumentNullException.ThrowIfNull(updateLibraryDto);
 
         Library? library = await libraryRepository
@@ -90,9 +89,7 @@ public class LibrariesController(ILibraryRepository libraryRepository, IBookRepo
         if (library == null)
             return NotFound(new ApiResponse(404, $"Library with ID {id} not found"));
 
-        library.Name = updateLibraryDto.Name;
-        library.Location = updateLibraryDto.Location;
-        library.Description = updateLibraryDto.Description;
+        library.Update(updateLibraryDto.Name, updateLibraryDto.Location, updateLibraryDto.Description);
 
         await libraryRepository
             .UpdateAsync(library)
@@ -148,12 +145,27 @@ public class LibrariesController(ILibraryRepository libraryRepository, IBookRepo
         if (book == null)
             return NotFound(new ApiResponse(404, $"Book with ID {bookId} not found"));
 
-        book.LibraryId = libraryId;
+        AssignBookToLibrary(book, libraryId);
+
         await bookRepository
             .UpdateAsync(book)
             .ConfigureAwait(false);
 
         return Ok(MapToBookDto(book));
+    }
+
+    private static void AssignBookToLibrary(Book book, int libraryId)
+    {
+
+        PropertyInfo? property = typeof(Book).GetProperty("LibraryId");
+        if (property != null && property.CanWrite)
+        {
+            property.SetValue(book, libraryId);
+        }
+        else
+        {
+            throw new InvalidOperationException("Cannot assign book to library - LibraryId is not settable");
+        }
     }
 
     private static LibraryDto MapToLibraryDto(Library library)

@@ -25,12 +25,29 @@ public class BorrowRecordRepository(LibraryDbContext context) : GenericRepositor
             .ToListAsync().ConfigureAwait(false);
     }
 
+    public async Task<IEnumerable<BorrowRecord>> GetOverdueBorrowsByUserAsync(string userId)
+    {
+        return await Context.Set<BorrowRecord>()
+            .Include(br => br.Book)
+            .Include(br => br.User)
+            .Where(br => br.UserId == userId && !br.IsReturned && br.DueDate < DateTime.UtcNow)
+            .ToListAsync().ConfigureAwait(false);
+    }
+
     public async Task<BorrowRecord?> GetActiveBorrowByBookAndUserAsync(int bookId, string userId)
     {
         return await Context.Set<BorrowRecord>()
             .Include(br => br.Book)
             .Include(br => br.User)
             .FirstOrDefaultAsync(br => br.BookId == bookId && br.UserId == userId && !br.IsReturned).ConfigureAwait(false);
+    }
+
+    public async Task<BorrowRecord?> GetActiveBorrowByBookAsync(int bookId)
+    {
+        return await Context.Set<BorrowRecord>()
+            .Include(br => br.Book)
+            .Include(br => br.User)
+            .FirstOrDefaultAsync(br => br.BookId == bookId && !br.IsReturned).ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<BorrowRecord>> GetBorrowHistoryByUserAsync(string userId)
@@ -60,4 +77,5 @@ public class BorrowRecordRepository(LibraryDbContext context) : GenericRepositor
             .Include(br => br.User)
             .FirstOrDefaultAsync(br => br.Id == borrowRecordId).ConfigureAwait(false);
     }
+
 }

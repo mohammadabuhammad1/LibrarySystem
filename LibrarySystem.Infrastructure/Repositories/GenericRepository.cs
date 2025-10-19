@@ -1,4 +1,4 @@
-﻿using LibrarySystem.Domain.Entities;
+﻿using LibrarySystem.Domain.Common;
 using LibrarySystem.Domain.Interfaces;
 using LibrarySystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;

@@ -15,5 +15,7 @@ public interface IBookService
     Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId);
     Task<bool> BookExistsAsync(int id);
     Task<IEnumerable<BookDto>> GetBorrowedBooksByUserAsync(string userId);
+    Task<OverallBookStatsDto> GetOverallBookStatsAsync();
+
 
 }

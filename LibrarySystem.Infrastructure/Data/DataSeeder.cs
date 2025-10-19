@@ -61,22 +61,18 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
 
             List<Library> libraries = new()
             {
-                new()
-                {
-                    Name = "Central Library",
-                    Location = "Main Street",
-                    Description = "A hub for book lovers",
-                    OrganizationUnitId = defaultOu.Id,
-                    CreatedAt = DateTime.UtcNow
-                },
-                new()
-                {
-                    Name = "Downtown Branch",
-                    Location = "Downtown",
-                    Description = "A small branch offering study space",
-                    OrganizationUnitId = defaultOu.Id,
-                    CreatedAt = DateTime.UtcNow
-                }
+                Library.Create(
+                    "Central Library",           
+                    "Main Street",               
+                    "A hub for book lovers",     
+                    defaultOu.Id                 
+                ),
+                Library.Create(
+                    "Downtown Branch",           
+                    "Downtown",                  
+                    "A small branch offering study space",
+                    defaultOu.Id                 
+                )
             };
 
             await context.Libraries.AddRangeAsync(libraries).ConfigureAwait(false);
@@ -94,28 +90,22 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
             {
                 List<Book> books = new()
                 {
-                    new()
-                    {
-                        Title = "To Kill a Mockingbird",
-                        Author = "Harper Lee",
-                        ISBN = "9780061120084",
-                        PublishedYear = 1960,
-                        TotalCopies = 10,
-                        CopiesAvailable = 10,
-                        LibraryId = library.Id,
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new()
-                    {
-                        Title = "1984",
-                        Author = "George Orwell",
-                        ISBN = "9780451524935",
-                        PublishedYear = 1949,
-                        TotalCopies = 5,
-                        CopiesAvailable = 5,
-                        LibraryId = library.Id,
-                        CreatedAt = DateTime.UtcNow
-                    }
+                    Book.Create(
+                        "To Kill a Mockingbird", 
+                        "Harper Lee",           
+                        "9780061120084",        
+                        1960,                   
+                        10,                     
+                        library.Id              
+                    ),
+                    Book.Create(
+                        "1984",                 
+                        "George Orwell",        
+                        "9780451524935",        
+                        1949,                   
+                        5,                      
+                        library.Id              
+                    )
                 };
 
                 await context.Books.AddRangeAsync(books).ConfigureAwait(false);
@@ -134,17 +124,12 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
 
             if (user != null && book != null)
             {
-                BorrowRecord borrowRecord = new()
-                {
-                    BookId = book.Id,
-                    UserId = user.Id,
-                    BorrowDate = DateTime.UtcNow,
-                    DueDate = DateTime.UtcNow.AddDays(14),
-                    ReturnDate = null,
-                    FineAmount = 0,
-                    Notes = "First Borrow",
-                    CreatedAt = DateTime.UtcNow
-                };
+                var borrowRecord = BorrowRecord.Create(
+                    book.Id,                   
+                    user.Id,                   
+                    14,                        
+                    "First Borrow"             
+                );
 
                 await context.BorrowRecords.AddAsync(borrowRecord).ConfigureAwait(false);
                 await context.SaveChangesAsync().ConfigureAwait(false);

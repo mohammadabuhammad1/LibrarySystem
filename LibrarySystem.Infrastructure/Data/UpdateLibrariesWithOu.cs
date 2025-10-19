@@ -1,5 +1,4 @@
 ﻿using LibrarySystem.Domain.Entities;
-using LibrarySystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace LibrarySystem.Infrastructure.Data;
@@ -26,12 +25,13 @@ public static class UpdateLibrariesWithOu
 
         foreach (Library library in librariesWithoutOu)
         {
-            library.OrganizationUnitId = defaultOu.Id;
+            library.AssignOrganizationUnit(defaultOu.Id);
         }
 
         if (librariesWithoutOu.Count > 0)
         {
             await context.SaveChangesAsync().ConfigureAwait(false);
         }
+
     }
 }

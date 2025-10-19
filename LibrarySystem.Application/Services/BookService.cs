@@ -2,7 +2,6 @@
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
-using static System.Reflection.Metadata.BlobBuilder;
 
 namespace LibrarySystem.Application.Services;
 
@@ -31,17 +30,14 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
         if (createBookDto is null)
             return null;
 
-        var book = new Book
-        {
-            Title = createBookDto.Title,
-            Author = createBookDto.Author,
-            ISBN = createBookDto.ISBN,
-            PublishedYear = createBookDto.PublishedYear,
-            TotalCopies = createBookDto.TotalCopies,
-            CopiesAvailable = createBookDto.TotalCopies,
-            CreatedAt = DateTime.UtcNow
-            
-        };
+        Book book = Book.Create(
+            createBookDto.Title,
+            createBookDto.Author,
+            createBookDto.ISBN,
+            createBookDto.PublishedYear,
+            createBookDto.TotalCopies
+        );
+
 
         Book? createdBook = await unitOfWork.Books
             .AddAsync(book)
@@ -51,7 +47,7 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .CommitAsync()
             .ConfigureAwait(false);
 
-        if(!success)
+        if (!success)
             throw new InvalidOperationException("Failed to create book");
 
         return MapToBookDto(createdBook);
@@ -69,10 +65,13 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
 
         if (book == null) return null;
 
-        book.Title = updateBookDto.Title;
-        book.Author = updateBookDto.Author;
-        book.PublishedYear = updateBookDto.PublishedYear;
-        book.TotalCopies = updateBookDto.TotalCopies;
+        book.UpdateDetails(
+            updateBookDto.Title,
+            updateBookDto.Author,
+            updateBookDto.ISBN,
+            updateBookDto.PublishedYear,
+            updateBookDto.TotalCopies
+        );
 
         await unitOfWork.Books
             .UpdateAsync(book)
@@ -82,7 +81,7 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .CommitAsync()
             .ConfigureAwait(false);
 
-        if(!success)
+        if (!success)
             throw new InvalidOperationException("Failed to update book");
 
         return MapToBookDto(book);
@@ -104,7 +103,7 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .CommitAsync()
             .ConfigureAwait(false);
 
-        if(!success)
+        if (!success)
             throw new InvalidOperationException("Failed to delete book");
 
         return true;
@@ -154,6 +153,31 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
         return books.Select(MapToBookDto);
     }
 
+
+    public async Task<OverallBookStatsDto> GetOverallBookStatsAsync()
+    {
+        IEnumerable<Book> allBooks = await unitOfWork.Books.GetAllAsync().ConfigureAwait(false);
+
+        OverallBookStatsDto stats = new OverallBookStatsDto
+        {
+            TotalBooks = allBooks.Count(),
+            TotalCopies = allBooks.Sum(b => b.TotalCopies),
+            AvailableCopies = allBooks.Sum(b => b.CopiesAvailable),
+            BorrowedCopies = allBooks.Sum(b => b.BorrowedCopiesCount),
+            OutOfStockBooks = allBooks.Count(b => b.CopiesAvailable == 0),
+            AvailableBooks = allBooks.Count(b => b.CopiesAvailable > 0)
+        };
+
+        IEnumerable<Library> allLibraries = await unitOfWork.Libraries.GetAllAsync().ConfigureAwait(false);
+        stats.TotalLibraries = allLibraries.Count();
+
+        stats.UtilizationRate = stats.TotalCopies > 0 ?
+            (decimal)stats.BorrowedCopies / stats.TotalCopies * 100 : 0;
+
+        stats.DamagedCopies = stats.TotalCopies - (stats.AvailableCopies + stats.BorrowedCopies);
+
+        return stats;
+    }
     private static BookDto MapToBookDto(Book book)
     {
         return new BookDto

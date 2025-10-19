@@ -1,4 +1,4 @@
-﻿using LibrarySystem.Domain.Entities;
+﻿using LibrarySystem.Domain.Common;
 
 namespace LibrarySystem.Domain.Interfaces;
 

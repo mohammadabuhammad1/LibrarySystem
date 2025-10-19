@@ -16,7 +16,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// ✅ INFRASTRUCTURE LAYER (Includes ALL repositories and UnitOfWork)
+// ✅ INFRASTRUCTURE LAYER FIRST (Includes ALL repositories, UnitOfWork, and infrastructure services)
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add Identity
@@ -92,7 +92,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(securityRequirement);
 });
 
-// ✅ APPLICATION SERVICES ONLY (No repositories!)
+// ✅ APPLICATION SERVICES (Depends on infrastructure services)
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();

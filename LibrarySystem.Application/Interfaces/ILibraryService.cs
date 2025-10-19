@@ -10,5 +10,9 @@ public interface ILibraryService
     Task<IEnumerable<BookDto>> GetBorrowedBooksAsync();
     Task<IEnumerable<BookDto>> GetAvailableBooksAsync();
 
-
+    Task<BookDto> MarkBookAsDamagedAsync(int bookId);
+    Task<BookDto> RestockBookAsync(int bookId, int additionalCopies);
+    Task<BookStatsDto> GetBookStatsAsync(int bookId);
+    Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId);
+    Task<OverallBookStatsDto> GetOverallBooksStats();
 }

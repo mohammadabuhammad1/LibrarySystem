@@ -1,5 +1,4 @@
-﻿using LibrarySystem.Application.Dtos.Book;
-using LibrarySystem.Application.Dtos.Books;
+﻿using LibrarySystem.Application.Dtos.Books;
 
 namespace LibrarySystem.Application.Interfaces;
 

@@ -1,9 +1,12 @@
 ﻿namespace LibrarySystem.Application.Dtos.Books;
 public class BookStatsDto
 {
-    public int TotalBooks { get; set; }
-    public int AvailableBooks { get; set; }
-    public int BorrowedBooks { get; set; }
+    public int BookId { get; set; }
+    public string Title { get; set; } = string.Empty;
     public int TotalCopies { get; set; }
-    public int AvailableCopies { get; set; }
+    public int CopiesAvailable { get; set; }
+    public int BorrowedCopiesCount { get; set; }
+    public decimal UtilizationRate { get; set; }
+    public bool IsAvailable { get; set; }
+    public bool IsOutOfStock { get; set; }
 }
