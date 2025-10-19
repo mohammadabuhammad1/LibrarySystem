@@ -40,13 +40,19 @@ public partial class DatabaseInitializer(IServiceProvider serviceProvider, ILogg
             if (!pendingMigrations.Any() && !appliedMigrations.Any())
             {
                 _noMigrationsFound(logger, null);
-                throw new DatabaseInitializationException(
+                throw new InvalidOperationException(
                     "No migrations found. Please create migrations using: dotnet ef migrations add InitialCreate --project LibrarySystem.Infrastructure --startup-project LibrarySystem.API");
             }
 
             // Apply migrations
             await context.Database.MigrateAsync().ConfigureAwait(false);
             _databaseMigrated(logger, null);
+
+            // Seed organization units first
+            await OrganizationUnitSeeder.SeedAsync(context).ConfigureAwait(false);
+
+            // Migrate existing libraries with OU
+            await UpdateLibrariesWithOu.MigrateExistingLibrariesAsync(context).ConfigureAwait(false);
 
             // Seed roles and super admin
             RoleSeeder roleSeeder = scopeServiceProvider.GetRequiredService<RoleSeeder>();
@@ -62,22 +68,17 @@ public partial class DatabaseInitializer(IServiceProvider serviceProvider, ILogg
         catch (DbUpdateException dbEx)
         {
             _initializationError(logger, $"Database update failed: {dbEx.Message}", dbEx);
-            throw new DatabaseInitializationException("Database initialization failed due to migration error", dbEx);
+            throw new InvalidOperationException("Database initialization failed due to migration error", dbEx);
         }
         catch (InvalidOperationException invalidOpEx)
         {
             _initializationError(logger, $"Service resolution failed: {invalidOpEx.Message}", invalidOpEx);
-            throw new DatabaseInitializationException("Database initialization failed due to service resolution error", invalidOpEx);
-        }
-        catch (DatabaseInitializationException)
-        {
-            // Re-throw our custom exception as-is
-            throw;
+            throw new InvalidOperationException("Database initialization failed due to service resolution error", invalidOpEx);
         }
         catch (Exception ex)
         {
             _initializationError(logger, $"Unexpected error: {ex.Message}", ex);
-            throw new DatabaseInitializationException("Database initialization failed", ex);
+            throw new InvalidOperationException("Database initialization failed", ex);
         }
     }
 }

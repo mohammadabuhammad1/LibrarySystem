@@ -33,19 +33,18 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
         }
         catch (DbUpdateException dbEx)
         {
-            // ✓ Specific exception for database update errors
             _seedingError(logger, dbEx.Message, dbEx);
+            throw;
         }
         catch (InvalidOperationException invalidOpEx)
         {
-            // ✓ Specific exception for invalid operations (e.g., missing dependencies)
             _seedingError(logger, invalidOpEx.Message, invalidOpEx);
+            throw;
         }
         catch (Exception ex)
         {
-            // ✓ Generic exception as fallback
             _seedingError(logger, ex.Message, ex);
-            throw; // ✓ Re-throw to indicate seeding failure
+            throw;
         }
     }
 
@@ -53,13 +52,21 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
     {
         if (!await context.Libraries.AnyAsync().ConfigureAwait(false))
         {
-            List<Library> libraries = new() 
+            // Get the first organization unit
+            OrganizationUnit? defaultOu = await context.OrganizationUnits.FirstOrDefaultAsync().ConfigureAwait(false);
+            if (defaultOu == null)
+            {
+                return;
+            }
+
+            List<Library> libraries = new()
             {
                 new()
                 {
                     Name = "Central Library",
                     Location = "Main Street",
                     Description = "A hub for book lovers",
+                    OrganizationUnitId = defaultOu.Id,
                     CreatedAt = DateTime.UtcNow
                 },
                 new()
@@ -67,6 +74,7 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
                     Name = "Downtown Branch",
                     Location = "Downtown",
                     Description = "A small branch offering study space",
+                    OrganizationUnitId = defaultOu.Id,
                     CreatedAt = DateTime.UtcNow
                 }
             };
@@ -81,10 +89,10 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
     {
         if (!await context.Books.AnyAsync().ConfigureAwait(false))
         {
-            Library? library = await context.Libraries.FirstOrDefaultAsync().ConfigureAwait(false);  
+            Library? library = await context.Libraries.FirstOrDefaultAsync().ConfigureAwait(false);
             if (library != null)
             {
-                List<Book> books = new()  
+                List<Book> books = new()
                 {
                     new()
                     {
@@ -121,12 +129,12 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
     {
         if (!await context.BorrowRecords.AnyAsync().ConfigureAwait(false))
         {
-            ApplicationUser? user = await context.Users.FirstOrDefaultAsync().ConfigureAwait(false);  
-            Book? book = await context.Books.FirstOrDefaultAsync().ConfigureAwait(false);  
+            ApplicationUser? user = await context.Users.FirstOrDefaultAsync().ConfigureAwait(false);
+            Book? book = await context.Books.FirstOrDefaultAsync().ConfigureAwait(false);
 
             if (user != null && book != null)
             {
-                BorrowRecord borrowRecord = new()  
+                BorrowRecord borrowRecord = new()
                 {
                     BookId = book.Id,
                     UserId = user.Id,

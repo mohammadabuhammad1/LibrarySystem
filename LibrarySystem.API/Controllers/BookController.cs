@@ -1,5 +1,4 @@
 ﻿using LibrarySystem.API.Errors;
-using LibrarySystem.Application.Dtos.Book;
 using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
@@ -21,6 +20,7 @@ public class BooksController(
     [HttpGet("GetAllBooks")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
+
     public async Task<ActionResult<IEnumerable<BookDto>>> GetAllBooks()
     {
         IEnumerable<BookDto> books = await bookService.GetAllBooksAsync().ConfigureAwait(false);

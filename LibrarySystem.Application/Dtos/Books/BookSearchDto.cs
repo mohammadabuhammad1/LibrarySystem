@@ -1,4 +1,4 @@
-﻿namespace LibrarySystem.Application.Dtos.Book;
+﻿namespace LibrarySystem.Application.Dtos.Books;
 
 public class BookSearchDto
 {
