@@ -1,22 +1,17 @@
 ﻿using LibrarySystem.Domain.Interfaces;
 using LibrarySystem.Infrastructure.Data;
+using LibrarySystem.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace LibrarySystem.Infrastructure.Repositories;
 
-public sealed class UnitOfWork(
-    LibraryDbContext context,
-    IBookRepository bookRepository,
-    IBorrowRecordRepository borrowRecordRepository,
-    ILibraryRepository libraryRepository,
-    IOrganizationUnitRepository organizationUnitRepository) : IUnitOfWork
+public sealed class UnitOfWork(LibraryDbContext context) : IUnitOfWork
 {
     private IDbContextTransaction? _transaction;
 
-    public IBookRepository Books { get; } = bookRepository;
-    public IBorrowRecordRepository BorrowRecords { get; } = borrowRecordRepository;
-    public ILibraryRepository Libraries { get; } = libraryRepository;
-    public IOrganizationUnitRepository OrganizationUnits { get; } = organizationUnitRepository;
+    public IBookRepository Books { get; } = new BookRepository(context);
+    public IBorrowRecordRepository BorrowRecords { get; } = new BorrowRecordRepository(context);
+    public ILibraryRepository Libraries { get; } = new LibraryRepository(context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

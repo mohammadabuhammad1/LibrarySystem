@@ -1,4 +1,5 @@
-﻿using LibrarySystem.Domain.Commands.Books;
+﻿using LibrarySystem.Domain.Commands;
+using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
@@ -27,7 +28,6 @@ public class UpdateBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 
             book.UpdatedBy = command.CommandBy;
 
-            await unitOfWork.Books.UpdateAsync(book).ConfigureAwait(false);
             var success = await unitOfWork.CommitAsync().ConfigureAwait(false);
 
             if (!success)

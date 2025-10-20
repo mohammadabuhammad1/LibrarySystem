@@ -52,26 +52,17 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
     {
         if (!await context.Libraries.AnyAsync().ConfigureAwait(false))
         {
-            // Get the first organization unit
-            OrganizationUnit? defaultOu = await context.OrganizationUnits.FirstOrDefaultAsync().ConfigureAwait(false);
-            if (defaultOu == null)
-            {
-                return;
-            }
-
             List<Library> libraries = new()
             {
                 Library.Create(
-                    "Central Library",           
-                    "Main Street",               
-                    "A hub for book lovers",     
-                    defaultOu.Id                 
+                    "Central Library",
+                    "Main Street",
+                    "A hub for book lovers"
                 ),
                 Library.Create(
-                    "Downtown Branch",           
-                    "Downtown",                  
-                    "A small branch offering study space",
-                    defaultOu.Id                 
+                    "Downtown Branch",
+                    "Downtown",
+                    "A small branch offering study space"
                 )
             };
 
@@ -91,20 +82,20 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
                 List<Book> books = new()
                 {
                     Book.Create(
-                        "To Kill a Mockingbird", 
-                        "Harper Lee",           
-                        "9780061120084",        
-                        1960,                   
-                        10,                     
-                        library.Id              
+                        "To Kill a Mockingbird",
+                        "Harper Lee",
+                        "9780061120084",
+                        1960,
+                        10,
+                        library.Id
                     ),
                     Book.Create(
-                        "1984",                 
-                        "George Orwell",        
-                        "9780451524935",        
-                        1949,                   
-                        5,                      
-                        library.Id              
+                        "1984",
+                        "George Orwell",
+                        "9780451524935",
+                        1949,
+                        5,
+                        library.Id
                     )
                 };
 
@@ -125,10 +116,10 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
             if (user != null && book != null)
             {
                 var borrowRecord = BorrowRecord.Create(
-                    book.Id,                   
-                    user.Id,                   
-                    14,                        
-                    "First Borrow"             
+                    book.Id,
+                    user.Id,
+                    14,
+                    "First Borrow"
                 );
 
                 await context.BorrowRecords.AddAsync(borrowRecord).ConfigureAwait(false);

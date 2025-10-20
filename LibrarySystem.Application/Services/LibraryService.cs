@@ -1,11 +1,12 @@
-﻿using LibrarySystem.Application.Dtos.Books;
+﻿using AutoMapper;
+using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
 namespace LibrarySystem.Application.Services;
 
-public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
+public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibraryService
 {
     public async Task<BookDto> BorrowBookAsync(int bookId)
     {
@@ -18,18 +19,17 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
 
         book.Borrow();
 
-        await unitOfWork.Books
-            .UpdateAsync(book)
-            .ConfigureAwait(false);
+        // REMOVED: await unitOfWork . Books . Update Async (bo ok).C onfigur eAwait(fal se) 
+        // This is redundant in EF Core if the entity is already tracked.
 
         bool success = await unitOfWork
             .CommitAsync()
             .ConfigureAwait(false);
 
         if (!success)
-            throw new InvalidOperationException("Failed to borrow book.");  
+            throw new InvalidOperationException("Failed to borrow book.");
 
-        return MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
     }
 
     public async Task<BookDto> ReturnBookAsync(int bookId)
@@ -46,10 +46,6 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
 
         book.Return();
 
-        await unitOfWork.Books
-            .UpdateAsync(book)
-            .ConfigureAwait(false);
-
         bool success = await unitOfWork
             .CommitAsync()
             .ConfigureAwait(false);
@@ -57,7 +53,8 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         if (!success)
             throw new InvalidOperationException("Failed to return book.");
 
-        return MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
+                                          
     }
 
     public async Task<IEnumerable<BookDto>> GetAvailableBooksAsync()
@@ -66,7 +63,7 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
             .GetAvailableBooksAsync()
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(books);
     }
 
     public async Task<IEnumerable<BookDto>> GetBorrowedBooksAsync()
@@ -78,7 +75,7 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         IEnumerable<Book> borrowedBooks = allBooks
             .Where(book => book.CanBorrow());
 
-        return borrowedBooks.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(borrowedBooks); 
     }
 
     public async Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId)
@@ -87,9 +84,8 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
             .GetBooksByLibraryAsync(libraryId)
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(books);
     }
-
 
     public async Task<BookDto> MarkBookAsDamagedAsync(int bookId)
     {
@@ -102,10 +98,6 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
 
         book.MarkAsDamaged();
 
-        await unitOfWork.Books
-            .UpdateAsync(book)
-            .ConfigureAwait(false);
-
         bool success = await unitOfWork
             .CommitAsync()
             .ConfigureAwait(false);
@@ -113,7 +105,7 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         if (!success)
             throw new InvalidOperationException("Failed to mark book as damaged.");
 
-        return MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
     }
 
     public async Task<BookDto> RestockBookAsync(int bookId, int additionalCopies)
@@ -127,10 +119,6 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
 
         book.Restock(additionalCopies);
 
-        await unitOfWork.Books
-            .UpdateAsync(book)
-            .ConfigureAwait(false);
-
         bool success = await unitOfWork
             .CommitAsync()
             .ConfigureAwait(false);
@@ -138,7 +126,7 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         if (!success)
             throw new InvalidOperationException("Failed to restock book.");
 
-        return MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
     }
 
     public async Task<BookStatsDto> GetBookStatsAsync(int bookId)
@@ -150,31 +138,8 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         if (book == null)
             throw new InvalidOperationException($"Book with ID {bookId} not found.");
 
-        return new BookStatsDto
-        {
-            BookId = book.Id,
-            Title = book.Title,
-            TotalCopies = book.TotalCopies,
-            CopiesAvailable = book.CopiesAvailable,
-            BorrowedCopiesCount = book.BorrowedCopiesCount,
-            UtilizationRate = book.UtilizationRate,
-            IsAvailable = book.IsAvailable,
-            IsOutOfStock = book.IsOutOfStock
-        };
-    }
-    private static BookDto MapToBookDto(Book book)
-    {
-        return new BookDto
-        {
-            Id = book.Id,
-            Title = book.Title,
-            Author = book.Author,
-            ISBN = book.ISBN,
-            PublishedYear = book.PublishedYear,
-            TotalCopies = book.TotalCopies,
-            CopiesAvailable = book.CopiesAvailable,
-            LibraryId = book.LibraryId ?? 0
-        };
+        return mapper.Map<BookStatsDto>(book);
+
     }
 
     public async Task<OverallBookStatsDto> GetOverallBooksStats()
@@ -199,5 +164,33 @@ public class LibraryService(IUnitOfWork unitOfWork) : ILibraryService
         stats.DamagedCopies = stats.TotalCopies - (stats.AvailableCopies + stats.BorrowedCopies);
 
         return stats;
+    }
+
+    public async Task<BookDto> AddBookToLibraryAsync(int libraryId, int bookId)
+    {
+        Library? library = await unitOfWork.Libraries
+            .GetByIdAsync(libraryId)
+            .ConfigureAwait(false);
+
+        if (library == null)
+            throw new InvalidOperationException($"Library with ID {libraryId} not found");
+
+        Book? book = await unitOfWork.Books
+            .GetByIdAsync(bookId)
+            .ConfigureAwait(false);
+
+        if (book == null)
+            throw new InvalidOperationException($"Book with ID {bookId} not found");
+
+        book.AssignToLibrary(libraryId);
+
+        bool success = await unitOfWork
+            .CommitAsync()
+            .ConfigureAwait(false);
+
+        if (!success)
+            throw new InvalidOperationException("Failed to add book to library");
+
+        return mapper.Map<BookDto>(book);
     }
 }

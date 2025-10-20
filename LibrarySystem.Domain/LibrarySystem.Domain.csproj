@@ -1,6 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
+	  <Compile Remove="Entities\OrganizationUnit.cs" />
+	  <Compile Remove="Entities\Tenant.cs" />
+	  <Compile Remove="Entities\TenantFeature.cs" />
+	  <Compile Remove="Interfaces\IOrganizationUnitRepository.cs" />
+	  <Compile Remove="Interfaces\ITenantFeatureRepository.cs" />
+	  <Compile Remove="Interfaces\ITenantRepository.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.10" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />

@@ -3,18 +3,21 @@ using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LibrarySystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("PerTenantPolicy")]
 public class BorrowRecordsController(IBorrowRecordService borrowRecordService) : ControllerBase
 {
     [HttpPost("BorrowBook")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian,Member")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BorrowRecordDto>> BorrowBook([FromBody] CreateBorrowRecordDto borrowDto)
     {
         BorrowRecordDto borrowRecord = await borrowRecordService
@@ -28,6 +31,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BorrowRecordDto>> ReturnBook([FromBody] ReturnBookDto returnDto)
     {
         BorrowRecordDto borrowRecord = await borrowRecordService
@@ -40,6 +44,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [HttpGet("MemberBorrowHistory/{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin,Librarian,Member")]
+    [EnableRateLimiting("PerTenantPolicy")]
     public async Task<ActionResult<IEnumerable<BorrowRecordDto>>> GetUserBorrowHistory(string userId)
     {
         if (User.IsInRole("Member") && User.Identity?.Name != userId)
@@ -74,6 +79,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [HttpGet("OverdueBooks")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin,Librarian")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BorrowRecordDto>>> GetOverdueBooks()
     {
         IEnumerable<BorrowRecordDto> overdueBooks = await borrowRecordService
@@ -131,6 +137,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian,Member")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BorrowRecordDto>> RenewBorrow(int borrowRecordId, [FromBody] int additionalDays)
     {
         string? userName = User.Identity?.Name;
@@ -150,6 +157,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [HttpGet("BorrowStats")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin,Librarian")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BorrowStatsDto>> GetBorrowStats()
     {
         IEnumerable<BorrowRecordDto> overdueBooks = await borrowRecordService

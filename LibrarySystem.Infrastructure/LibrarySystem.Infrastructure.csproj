@@ -1,6 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <Compile Remove="Services\**" />
+    <EmbeddedResource Remove="Services\**" />
+    <None Remove="Services\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Data\OrganizationUnitSeeder.cs" />
+    <Compile Remove="Data\TenantAwareRepository.cs" />
+    <Compile Remove="Data\UpdateLibrariesWithOu.cs" />
+    <Compile Remove="Repositories\OrganizationUnitRepository.cs" />
+    <Compile Remove="Repositories\TenantFeatureRepository.cs" />
+    <Compile Remove="Repositories\TenantRepository.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
      <ProjectReference Include="..\LibrarySystem.Domain\LibrarySystem.Domain.csproj" />
 	  <ProjectReference Include="..\LibrarySystem.Application\LibrarySystem.Application.csproj" />
   </ItemGroup>
@@ -10,11 +25,13 @@
   </ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.10" />
 	</ItemGroup>
 
 </Project>

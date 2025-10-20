@@ -11,9 +11,6 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
     public DbSet<Library> Libraries { get; set; }
     public DbSet<BorrowRecord> BorrowRecords { get; set; }
 
-    public DbSet<OrganizationUnit> OrganizationUnits { get; set; }
-    public DbSet<UserOrganizationUnit> UserOrganizationUnits { get; set; }
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -82,66 +79,6 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
                 .HasMaxLength(20);
         });
 
-        builder.Entity<OrganizationUnit>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Code)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.HasIndex(e => e.Code)
-                .IsUnique();
-
-            entity.Property(e => e.DisplayName)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            entity.Property(e => e.Description)
-                .HasMaxLength(1000);
-
-            entity.Property(e => e.Type)
-                .HasMaxLength(50);
-
-            entity.Property(e => e.ContactEmail)
-                .HasMaxLength(200);
-
-            entity.Property(e => e.ContactPhone)
-                .HasMaxLength(50);
-
-            // Self-referencing relationship for hierarchy
-            entity.HasOne(e => e.Parent)
-                .WithMany(e => e.Children)
-                .HasForeignKey(e => e.ParentId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => e.ParentId);
-            entity.HasIndex(e => e.IsActive);
-        });
-
-        // NEW: UserOrganizationUnit configuration (Many-to-Many)
-        builder.Entity<UserOrganizationUnit>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            entity.HasOne(e => e.User)
-                .WithMany(u => u.UserOrganizationUnits)
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.OrganizationUnit)
-                .WithMany(ou => ou.UserOrganizationUnits)
-                .HasForeignKey(e => e.OrganizationUnitId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Composite index for uniqueness
-            entity.HasIndex(e => new { e.UserId, e.OrganizationUnitId })
-                .IsUnique();
-
-            entity.HasIndex(e => e.IsDefault);
-        });
-
-        // ApplicationUser additional configuration
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);

@@ -6,12 +6,14 @@ using Microsoft.AspNetCore.Identity;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Application.Dtos.Roles;
 using LibrarySystem.API.Errors;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LibrarySystem.API.Controllers;
 
 [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("ApiPolicy")]
 public class RolesController(
     IRoleService roleService,
     UserManager<ApplicationUser> userManager) : BaseApiController(userManager)
@@ -20,6 +22,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<List<RoleDto>>> GetRoles()
     {
         List<RoleDto> roles = await roleService
@@ -34,6 +37,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> CreateRole([FromBody] string roleName)
     {
         if (string.IsNullOrWhiteSpace(roleName))
@@ -57,6 +61,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> AssignRoleToUser([FromBody] AssignRoleDto assignRoleDto)
     {
 
@@ -108,6 +113,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<List<string>>> GetUserRoles(string userId)
     {
         IList<string> roles = await roleService
@@ -122,6 +128,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<List<UserRoleDto>>> GetUsersInRole(string roleName)
     {
         if (!await roleService.RoleExistsAsync(roleName).ConfigureAwait(false))
@@ -141,6 +148,7 @@ public class RolesController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> DeleteRole(string roleName)
     {
         if (!await roleService.RoleExistsAsync(roleName).ConfigureAwait(false))

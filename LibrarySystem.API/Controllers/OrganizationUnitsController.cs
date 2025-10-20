@@ -1,22 +1,22 @@
 ﻿using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Application.OrganiztionUnits.Dtos;
-using LibrarySystem.API.Controllers;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Infrastructure.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LibrarySystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("PerTenantPolicy")]
 public class OrganizationUnitsController(
     IOrganizationUnitService ouService,
     UserManager<ApplicationUser> userManager) : BaseApiController(userManager)
 {
-
     /// <summary>
     /// Get all organization units
     /// </summary>
@@ -98,6 +98,7 @@ public class OrganizationUnitsController(
     [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<OrganizationUnitDto>> Create([FromBody] CreateOrganizationUnitDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
@@ -224,6 +225,7 @@ public class OrganizationUnitsController(
     [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> AssignUser([FromBody] AssignUserToOuDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);

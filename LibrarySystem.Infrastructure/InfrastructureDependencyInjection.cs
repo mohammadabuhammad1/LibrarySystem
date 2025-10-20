@@ -1,10 +1,10 @@
 ﻿using LibrarySystem.Application.Commands.Books.Handlers;
+using LibrarySystem.Domain.Commands;
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Interfaces;
 using LibrarySystem.Infrastructure.Commands;
 using LibrarySystem.Infrastructure.Data;
 using LibrarySystem.Infrastructure.Repositories;
-using LibrarySystem.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +23,6 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IBookRepository, BookRepository>();
         services.AddScoped<IBorrowRecordRepository, BorrowRecordRepository>();
         services.AddScoped<ILibraryRepository, LibraryRepository>();
-        services.AddScoped<IOrganizationUnitRepository, OrganizationUnitRepository>();
 
         // Command Handlers
         services.AddScoped<ICommandHandler<CreateBookCommand>, CreateBookCommandHandler>();
@@ -36,11 +35,9 @@ public static class InfrastructureDependencyInjection
         // Command Dispatcher
         services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 
-        // Infrastructure Services - ADD THIS LINE
-        // In InfrastructureDependencyInjection.cs
-        services.AddScoped<IOrganizationUnitCodeGenerator, OrganizationUnitCodeGenerator>();
         // Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 
         return services;
     }

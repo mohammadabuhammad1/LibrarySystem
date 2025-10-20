@@ -21,4 +21,11 @@ public interface IOrganizationUnitService
     Task<OrganizationUnitStatsDto> GetStatsAsync();
     Task<bool> CanCreateLibraryAsync(int ouId);
     Task<bool> CanCreateUserAsync(int ouId);
+
+
+    Task<OrganizationUnitDto> CreateBranchAsync(int parentTenantId, CreateOrganizationUnitDto dto);
+    Task<IEnumerable<OrganizationUnitDto>> GetTenantBranchesAsync(int tenantId);
+    Task<bool> IsTenantAsync(int ouId);
+
+
 }

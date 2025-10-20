@@ -1,5 +1,5 @@
-﻿using LibrarySystem.Infrastructure.Constants;
-using LibrarySystem.Domain.Entities;
+﻿using LibrarySystem.Domain.Entities;
+using LibrarySystem.Infrastructure.Constants;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -25,16 +25,11 @@ public class RoleSeeder(
 
     public async Task SeedRolesAsync()
     {
-        string[] roleNames = {
-            UserRoles.SuperAdmin,
-            UserRoles.Admin,
-            UserRoles.Librarian,
-            UserRoles.Member
-        };
+        string[] roleNames = UserRoles.AllRoles;
 
-        foreach (string roleName in roleNames)  
+        foreach (string roleName in roleNames)
         {
-            bool roleExist = await roleManager.RoleExistsAsync(roleName).ConfigureAwait(false); 
+            bool roleExist = await roleManager.RoleExistsAsync(roleName).ConfigureAwait(false);
             if (!roleExist)
             {
                 await roleManager.CreateAsync(new IdentityRole(roleName)).ConfigureAwait(false);
@@ -46,11 +41,11 @@ public class RoleSeeder(
     public async Task SeedSuperAdminAsync()
     {
         string superAdminEmail = "superadmin@library.com";
-        ApplicationUser? superAdminUser = await userManager.FindByEmailAsync(superAdminEmail).ConfigureAwait(false);  
+        ApplicationUser? superAdminUser = await userManager.FindByEmailAsync(superAdminEmail).ConfigureAwait(false);
 
         if (superAdminUser == null)
         {
-            ApplicationUser user = new() 
+            ApplicationUser user = new()
             {
                 Name = "Super Admin",
                 Email = superAdminEmail,
@@ -60,7 +55,7 @@ public class RoleSeeder(
                 IsActive = true
             };
 
-            IdentityResult result = await userManager.CreateAsync(user, "SuperAdmin123!").ConfigureAwait(false);  
+            IdentityResult result = await userManager.CreateAsync(user, "SuperAdmin123!").ConfigureAwait(false);
 
             if (result.Succeeded)
             {
@@ -70,9 +65,10 @@ public class RoleSeeder(
             }
             else
             {
-                string errors = string.Join(", ", result.Errors.Select(e => e.Description)); 
+                string errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _superAdminCreationFailed(logger, errors, null);
             }
         }
     }
+
 }

@@ -5,8 +5,9 @@ using LibrarySystem.Application.OrganiztionUnits.Dtos;
 
 namespace LibrarySystem.Application.Services;
 public class OrganizationUnitService(
-    IUnitOfWork unitOfWork,
-    IOrganizationUnitCodeGenerator codeGenerator) : IOrganizationUnitService
+    IOrganizationUnitRepository ouRepository,
+    IOrganizationUnitCodeGenerator codeGenerator,
+    IUnitOfWork unitOfWork) : IOrganizationUnitService
 {
     public async Task<OrganizationUnitDto?> GetByIdAsync(int id)
     {
@@ -333,6 +334,59 @@ public class OrganizationUnitService(
             .ConfigureAwait(false);
 
         return users.Count() < ou.MaxUsers.Value;
+    }
+
+     public async Task<OrganizationUnitDto> CreateBranchAsync(int parentTenantId, CreateOrganizationUnitDto dto)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        // Verify the parent is a tenant (root level)
+        OrganizationUnit? parentOu = await ouRepository.GetByIdAsync(parentTenantId).ConfigureAwait(false);
+        if (parentOu == null)
+            throw new InvalidOperationException($"Parent organization unit with ID {parentTenantId} not found");
+
+        if (parentOu.ParentId != null)
+            throw new InvalidOperationException("Parent organization unit must be a tenant (root level)");
+
+        // Generate the next code for the branch
+        string branchCode = await codeGenerator.GenerateNextCodeAsync(parentTenantId).ConfigureAwait(false);
+
+        // Create the branch organization unit
+        var branch = new OrganizationUnit
+        {
+            Code = branchCode,
+            DisplayName = dto.DisplayName,
+            Description = dto.Description,
+            ParentId = parentTenantId,
+            Type = "Branch", // Set type as Branch
+            ContactEmail = dto.ContactEmail,
+            ContactPhone = dto.ContactPhone,
+            SubscriptionStartDate = dto.SubscriptionStartDate,
+            SubscriptionEndDate = dto.SubscriptionEndDate,
+            MaxLibraries = dto.MaxLibraries,
+            MaxUsers = dto.MaxUsers,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        OrganizationUnit createdBranch = await ouRepository.AddAsync(branch).ConfigureAwait(false);
+
+        // Map to DTO and return
+        return MapToDto(createdBranch);
+    }
+
+    public async Task<IEnumerable<OrganizationUnitDto>> GetTenantBranchesAsync(int tenantId)
+    {
+        // Get all direct children of the tenant
+        IEnumerable<OrganizationUnit> branches = await ouRepository.GetChildrenAsync(tenantId).ConfigureAwait(false);
+        
+        return branches.Select(MapToDto);
+    }
+
+    public async Task<bool> IsTenantAsync(int ouId)
+    {
+        OrganizationUnit? ou = await ouRepository.GetByIdAsync(ouId).ConfigureAwait(false);
+        return ou?.ParentId == null && ou?.Type == "Tenant";
     }
 
     private async Task<OrganizationUnitTreeDto> BuildTreeAsync(OrganizationUnit ou)

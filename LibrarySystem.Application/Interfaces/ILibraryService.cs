@@ -15,4 +15,7 @@ public interface ILibraryService
     Task<BookStatsDto> GetBookStatsAsync(int bookId);
     Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId);
     Task<OverallBookStatsDto> GetOverallBooksStats();
+
+    Task<BookDto> AddBookToLibraryAsync(int libraryId, int bookId);
+
 }

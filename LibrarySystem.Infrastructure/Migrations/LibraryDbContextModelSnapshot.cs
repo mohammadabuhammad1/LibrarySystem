@@ -266,9 +266,6 @@ namespace LibrarySystem.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("OrganizationUnitId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -280,113 +277,7 @@ namespace LibrarySystem.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("OrganizationUnitId");
-
                     b.ToTable("Libraries");
-                });
-
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.OrganizationUnit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ContactEmail")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ContactPhone")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("MaxLibraries")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("MaxUsers")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SubscriptionEndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("SubscriptionStartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("ParentId");
-
-                    b.ToTable("OrganizationUnits");
-                });
-
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.UserOrganizationUnit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("OrganizationUnitId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsDefault");
-
-                    b.HasIndex("OrganizationUnitId");
-
-                    b.HasIndex("UserId", "OrganizationUnitId")
-                        .IsUnique();
-
-                    b.ToTable("UserOrganizationUnits");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -555,44 +446,6 @@ namespace LibrarySystem.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.Library", b =>
-                {
-                    b.HasOne("LibrarySystem.Domain.Entities.OrganizationUnit", null)
-                        .WithMany("Libraries")
-                        .HasForeignKey("OrganizationUnitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.OrganizationUnit", b =>
-                {
-                    b.HasOne("LibrarySystem.Domain.Entities.OrganizationUnit", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.UserOrganizationUnit", b =>
-                {
-                    b.HasOne("LibrarySystem.Domain.Entities.OrganizationUnit", "OrganizationUnit")
-                        .WithMany("UserOrganizationUnits")
-                        .HasForeignKey("OrganizationUnitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LibrarySystem.Domain.Entities.ApplicationUser", "User")
-                        .WithMany("UserOrganizationUnits")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OrganizationUnit");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -652,8 +505,6 @@ namespace LibrarySystem.Infrastructure.Migrations
                 {
                     b.Navigation("BorrowRecords");
 
-                    b.Navigation("UserOrganizationUnits");
-
                     b.Navigation("UserRoles");
                 });
 
@@ -665,15 +516,6 @@ namespace LibrarySystem.Infrastructure.Migrations
             modelBuilder.Entity("LibrarySystem.Domain.Entities.Library", b =>
                 {
                     b.Navigation("Books");
-                });
-
-            modelBuilder.Entity("LibrarySystem.Domain.Entities.OrganizationUnit", b =>
-                {
-                    b.Navigation("Children");
-
-                    b.Navigation("Libraries");
-
-                    b.Navigation("UserOrganizationUnits");
                 });
 #pragma warning restore 612, 618
         }

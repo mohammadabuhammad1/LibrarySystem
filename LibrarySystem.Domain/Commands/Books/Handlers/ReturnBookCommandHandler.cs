@@ -1,4 +1,6 @@
-﻿using LibrarySystem.Domain.Commands.Books;
+﻿using LibrarySystem.Domain.Commands;
+using LibrarySystem.Domain.Commands.Books;
+using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
 namespace LibrarySystem.Application.Commands.Books.Handlers;
@@ -16,12 +18,12 @@ public class ReturnBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
                 return CommandResult.Fail("User ID is required");
 
             // Get book
-            Domain.Entities.Book? book = await unitOfWork.Books.GetByIdAsync(command.BookId).ConfigureAwait(false);
+            Book? book = await unitOfWork.Books.GetByIdAsync(command.BookId).ConfigureAwait(false);
             if (book == null)
                 return CommandResult.Fail($"Book with ID {command.BookId} not found");
 
             // Get active borrow record
-            Domain.Entities.BorrowRecord? activeBorrow = await unitOfWork.BorrowRecords.GetActiveBorrowByBookAndUserAsync(
+            BorrowRecord? activeBorrow = await unitOfWork.BorrowRecords.GetActiveBorrowByBookAndUserAsync(
                 command.BookId, command.UserId).ConfigureAwait(false);
 
             if (activeBorrow == null)
@@ -35,7 +37,6 @@ public class ReturnBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
             activeBorrow.UpdatedBy = command.CommandBy;
 
             // Update entities
-            await unitOfWork.Books.UpdateAsync(book).ConfigureAwait(false);
             await unitOfWork.BorrowRecords.UpdateAsync(activeBorrow).ConfigureAwait(false);
 
             var success = await unitOfWork.CommitAsync().ConfigureAwait(false);

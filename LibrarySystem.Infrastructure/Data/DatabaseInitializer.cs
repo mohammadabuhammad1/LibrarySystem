@@ -48,12 +48,6 @@ public partial class DatabaseInitializer(IServiceProvider serviceProvider, ILogg
             await context.Database.MigrateAsync().ConfigureAwait(false);
             _databaseMigrated(logger, null);
 
-            // Seed organization units first
-            await OrganizationUnitSeeder.SeedAsync(context).ConfigureAwait(false);
-
-            // Migrate existing libraries with OU
-            await UpdateLibrariesWithOu.MigrateExistingLibrariesAsync(context).ConfigureAwait(false);
-
             // Seed roles and super admin
             RoleSeeder roleSeeder = scopeServiceProvider.GetRequiredService<RoleSeeder>();
             await roleSeeder.SeedRolesAsync().ConfigureAwait(false);

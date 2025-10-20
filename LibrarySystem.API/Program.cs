@@ -5,10 +5,13 @@ using LibrarySystem.Domain.Entities;
 using LibrarySystem.Infrastructure;
 using LibrarySystem.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +19,99 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// ✅ INFRASTRUCTURE LAYER FIRST (Includes ALL repositories, UnitOfWork, and infrastructure services)
+// Add HttpContextAccessor FIRST (required for TenantProvider)
+builder.Services.AddHttpContextAccessor();
+
+// Add CORS for multi-tenant frontends
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("MultiTenantCors", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// Add Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Global rate limiter
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.IsAuthenticated == true
+                ? $"user-{httpContext.User.Identity.Name}"
+                : $"anon-{httpContext.Connection.RemoteIpAddress}",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+
+    // Specific policy for authentication endpoints
+    options.AddPolicy("AuthPolicy", httpContext =>
+    {
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5, // Lower limit for auth endpoints
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+
+    // Policy for tenant-specific endpoints
+    options.AddPolicy("PerTenantPolicy", httpContext =>
+    {
+        string? tenantCode = httpContext.Request.Headers["X-Tenant-Code"].FirstOrDefault()
+                            ?? httpContext.Request.Query["tenantCode"].FirstOrDefault()
+                            ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"tenant-{tenantCode}",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 200, // Higher limit for authenticated tenant requests
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+
+    // Policy for API endpoints
+    options.AddPolicy("ApiPolicy", httpContext =>
+    {
+        return RateLimitPartition.GetTokenBucketLimiter(
+            partitionKey: httpContext.User.Identity?.IsAuthenticated == true
+                ? $"api-user-{httpContext.User.Identity.Name}"
+                : $"api-anon-{httpContext.Connection.RemoteIpAddress}",
+            factory: partition => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = 100,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                TokensPerPeriod = 20,
+                AutoReplenishment = true
+            });
+    });
+
+    // Configure status code for rate limited requests
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", token).ConfigureAwait(false);
+    };
+});
+
+// Add Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<DbContextHealthCheck<LibraryDbContext>>("Database");
+
+// ✅ INFRASTRUCTURE LAYER (Includes ALL repositories and UnitOfWork)
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add Identity
@@ -67,7 +162,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Library Management API", Version = "v1" });
 
-    OpenApiSecurityScheme securitySchema = new OpenApiSecurityScheme
+    OpenApiSecurityScheme securitySchema = new()
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
         Name = "Authorization",
@@ -84,7 +179,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", securitySchema);
 
     static string[] GetBearerScopes() => ["Bearer"];
-    OpenApiSecurityRequirement securityRequirement = new OpenApiSecurityRequirement
+    OpenApiSecurityRequirement securityRequirement = new()
     {
         { securitySchema, GetBearerScopes() }
     };
@@ -92,17 +187,18 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(securityRequirement);
 });
 
-// ✅ APPLICATION SERVICES (Depends on infrastructure services)
+// ✅ TENANT & APPLICATION SERVICES (Register after Infrastructure)
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IBorrowRecordService, BorrowRecordService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IOrganizationUnitService, OrganizationUnitService>();
 
 // ✅ ROLE SERVICES
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<RoleSeeder>();
+
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
 // ✅ DATA SEEDING
 builder.Services.AddScoped<DataSeeder>();
@@ -115,11 +211,54 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/error");
+    app.UseHsts();
 }
 
+// Global error handling endpoint
+app.Map("/error", (HttpContext context) =>
+{
+    return Results.Problem("An unexpected error occurred.");
+});
+
 app.UseHttpsRedirection();
+
+// Use Rate Limiting (before authentication to protect auth endpoints)
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add CORS
+app.UseCors("MultiTenantCors");
+
+// Add Health Checks
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+
+        var result = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                description = entry.Value.Description,
+                exception = entry.Value.Exception?.Message
+            })
+        });
+
+        await context.Response.WriteAsync(result).ConfigureAwait(false);
+    }
+});
+
 app.MapControllers();
 
 // Run database initialization

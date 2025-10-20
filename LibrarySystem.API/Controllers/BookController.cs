@@ -1,30 +1,40 @@
-﻿using LibrarySystem.API.Errors;
+﻿using AutoMapper;
+using LibrarySystem.API.Errors;
 using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using LibrarySystem.Domain.Commands.Books; 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using LibrarySystem.Domain.Commands;
 
 namespace LibrarySystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("ApiPolicy")]
 public class BooksController(
     IBookService bookService,
     IBorrowRecordService borrowRecordService,
     ILibraryService libraryService,
-    UserManager<ApplicationUser> userManager) : BaseApiController(userManager)
+    UserManager<ApplicationUser> userManager,
+    ICommandDispatcher dispatcher,
+    IMapper mapper)
+    : BaseApiController(userManager)
 {
-    // Get all 
     [HttpGet("GetAllBooks")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
-
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BookDto>>> GetAllBooks()
     {
-        IEnumerable<BookDto> books = await bookService.GetAllBooksAsync().ConfigureAwait(false);
+        IEnumerable<BookDto> books = await bookService
+            .GetAllBooksAsync()
+            .ConfigureAwait(false);
+
         return Ok(books);
     }
 
@@ -34,7 +44,10 @@ public class BooksController(
     [AllowAnonymous]
     public async Task<ActionResult<BookDto>> GetBookById(int id)
     {
-        BookDto? book = await bookService.GetBookByIdAsync(id).ConfigureAwait(false);
+        BookDto? book = await bookService
+            .GetBookByIdAsync(id)
+            .ConfigureAwait(false);
+
         if (book == null)
             return NotFound(new ApiResponse(404, $"Book with ID {id} not found"));
 
@@ -45,6 +58,7 @@ public class BooksController(
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BookDto>> CreateBook(CreateBookDto createBookDto)
     {
         ArgumentNullException.ThrowIfNull(createBookDto);
@@ -53,62 +67,80 @@ public class BooksController(
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
-        Console.WriteLine($"Book created by: {currentUser.Name} ({currentUser.Email})");
-
-        BookDto? existingBook = await bookService.GetBookByIsbnAsync(createBookDto.ISBN).ConfigureAwait(false);
-        if (existingBook != null)
+        // Pre-check outside the command handler for HTTP response clarity
+        if (await bookService.GetBookByIsbnAsync(createBookDto.ISBN).ConfigureAwait(false) != null)
             return BadRequest(new ApiResponse(400, $"Book with ISBN {createBookDto.ISBN} already exists"));
 
-        BookDto? book = await bookService.CreateBookAsync(createBookDto).ConfigureAwait(false);
-        if (book == null)
-            return BadRequest(new ApiResponse(400, "Failed to create book"));
+        CreateBookCommand command = mapper.Map<CreateBookCommand>(createBookDto);
+        command.CommandBy = currentUser.Id;
 
-        return CreatedAtAction(nameof(GetBookById), new { id = book.Id }, book);
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
+
+        if (result.IsFailure)
+            return BadRequest(new ApiResponse(400, result.Error));
+
+        var createdBook = result.Value;
+        BookDto bookDto = mapper.Map<BookDto>(createdBook);
+
+        return CreatedAtAction(nameof(GetBookById), new { id = bookDto.Id }, bookDto);
     }
-
     [HttpPut("UpdateBook/{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [Authorize(Roles = "Admin,Librarian")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BookDto>> UpdateBook(int id, UpdateBookDto updateBookDto)
     {
-        ArgumentNullException.ThrowIfNull(updateBookDto); 
+        ArgumentNullException.ThrowIfNull(updateBookDto);
 
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
-        Console.WriteLine($"Book {id} updated by: {currentUser.Name}");
+        UpdateBookCommand command = mapper.Map<UpdateBookCommand>(updateBookDto);
+        command.Id = id;
+        command.CommandBy = currentUser.Id;
 
-        if (!await bookService.BookExistsAsync(id).ConfigureAwait(false))
-            return NotFound(new ApiResponse(404, $"Book with ID {id} not found"));
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
 
-        BookDto? book = await bookService.UpdateBookAsync(id, updateBookDto).ConfigureAwait(false);
-        if (book == null)
-            return NotFound(new ApiResponse(404, $"Book with ID {id} not found"));
+        if (result.IsFailure)
+        {
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new ApiResponse(404, result.Error));
 
-        return Ok(book);
+            return BadRequest(new ApiResponse(400, result.Error));
+        }
+
+        var updatedBook = result.Value;
+        BookDto bookDto = mapper.Map<BookDto>(updatedBook);
+
+        return Ok(bookDto);
     }
 
     [HttpDelete("DeleteBook/{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> DeleteBook(int id)
     {
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
-        Console.WriteLine($"Book {id} deleted by: {currentUser.Name}");
+        var command = new DeleteBookCommand { Id = id, CommandBy = currentUser.Id };
 
-        bool deleted = await bookService
-            .DeleteBookAsync(id)
-            .ConfigureAwait(false);
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
 
-        if (!deleted)
-            return NotFound(new ApiResponse(404, $"Book with ID {id} not found"));
+        if (result.IsFailure)
+        {
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new ApiResponse(404, result.Error));
+
+            return BadRequest(new ApiResponse(400, result.Error));
+        }
 
         return NoContent();
     }
@@ -132,6 +164,7 @@ public class BooksController(
     [HttpGet("available")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BookDto>>> GetAvailableBooks()
     {
         IEnumerable<BookDto> books = await bookService
@@ -168,38 +201,16 @@ public class BooksController(
     [HttpPatch("{id:int}/update-copies")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian")]
     public async Task<ActionResult<BookDto>> UpdateBookCopies(int id, [FromBody] UpdateBookCopiesDto updateDto)
     {
-        ArgumentNullException.ThrowIfNull(updateDto); 
+        ArgumentNullException.ThrowIfNull(updateDto);
 
-        ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
-        if (currentUser == null)
-            return Unauthorized(new ApiResponse(401));
+        if (updateDto.AdditionalCopies > 0)
+            return await RestockBook(id, updateDto.AdditionalCopies).ConfigureAwait(false);
 
-        Console.WriteLine($"Book {id} copies updated by: {currentUser.Name}");
-
-        try
-        {
-            // Use the new restock method for adding copies
-            if (updateDto.AdditionalCopies > 0)
-            {
-                BookDto bookDto = await libraryService.RestockBookAsync(id, updateDto.AdditionalCopies).ConfigureAwait(false);
-                return Ok(bookDto);
-            }
-            else
-            {
-                return BadRequest(new ApiResponse(400, "Use mark-damaged endpoint to reduce copies"));
-            }
-        }
-        catch (InvalidOperationException ex)
-        {
-            return NotFound(new ApiResponse(404, ex.Message));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ApiResponse(400, ex.Message));
-        }
+        return BadRequest(new ApiResponse(400, "Use the dedicated 'mark-damaged' endpoint to reduce copies, or specify a positive number for 'restock'."));
     }
 
     [HttpGet("stats/{bookId:int}")] 
@@ -213,6 +224,7 @@ public class BooksController(
 
     [HttpGet("my-borrowed-books")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [EnableRateLimiting("PerTenantPolicy")]
     public async Task<ActionResult<IEnumerable<BookDto>>> GetMyBorrowedBooks()
     {
         string? currentUserId = GetCurrentUserId();
@@ -229,6 +241,7 @@ public class BooksController(
 
     [HttpGet("my-active-borrows")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [EnableRateLimiting("PerTenantPolicy")] 
     public async Task<ActionResult<IEnumerable<BorrowRecordDto>>> GetMyActiveBorrows()
     {
         string? currentUserId = GetCurrentUserId();
@@ -246,12 +259,14 @@ public class BooksController(
     [HttpPost("borrow/{bookId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<BorrowRecordDto>> BorrowBook(int bookId)
     {
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
+        // Policy Check (Query) remains here as quick failure mechanism
         bool canBorrow = await borrowRecordService
             .CanUserBorrowAsync(currentUser.Id)
             .ConfigureAwait(false);
@@ -259,46 +274,53 @@ public class BooksController(
         if (!canBorrow)
             return BadRequest(new ApiResponse(400, "Cannot borrow book. Check if you have overdue books or reached borrowing limit."));
 
-        CreateBorrowRecordDto borrowDto = new CreateBorrowRecordDto
+        // Create and dispatch Command
+        var command = new BorrowBookCommand
         {
             UserId = currentUser.Id,
             BookId = bookId,
             BorrowDurationDays = 14,
-            Notes = $"Borrowed by {currentUser.Name}"
+            CommandBy = currentUser.Id
         };
 
-        BorrowRecordDto borrowRecord = await borrowRecordService
-            .BorrowBookAsync(borrowDto)
-            .ConfigureAwait(false);
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
 
-        return Ok(borrowRecord);
+        if (result.IsFailure)
+            return BadRequest(new ApiResponse(400, result.Error));
+
+        var borrowRecord = result.Value;
+        BorrowRecordDto recordDto = mapper.Map<BorrowRecordDto>(borrowRecord);
+
+        return Ok(recordDto);
     }
 
     [HttpPost("return/{bookId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [Authorize(Roles = "Admin,Librarian")]
-    public async Task<ActionResult<BorrowRecordDto>> ReturnBook(int bookId, [FromBody] ReturnBookDto returnDto) // Add parameter
+    [EnableRateLimiting("ApiPolicy")]
+    public async Task<ActionResult<BorrowRecordDto>> ReturnBook(int bookId, [FromBody] ReturnBookDto returnDto)
     {
-
         ArgumentNullException.ThrowIfNull(returnDto);
 
         ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
-        Console.WriteLine($"Book return processed by: {currentUser.Name}");
+        // Create and dispatch Command
+        ReturnBookCommand command = mapper.Map<ReturnBookCommand>(returnDto);
+        command.BookId = bookId;
+        command.CommandBy = currentUser.Id; // The user processing the return
 
-        returnDto.Notes = $"Return processed by {currentUser.Name}";
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
 
-        BorrowRecordDto? borrowRecord = await borrowRecordService
-            .ReturnBookAsync(returnDto)
-            .ConfigureAwait(false);
+        if (result.IsFailure)
+            return BadRequest(new ApiResponse(400, result.Error));
 
-        if (borrowRecord == null)
-            return BadRequest(new ApiResponse(400, "Failed to return book"));
+        var borrowRecord = result.Value;
+        BorrowRecordDto recordDto = mapper.Map<BorrowRecordDto>(borrowRecord);
 
-        return Ok(borrowRecord);
+        return Ok(recordDto);
     }
 
     [HttpGet("my-fines")]
@@ -324,19 +346,36 @@ public class BooksController(
     [Authorize(Roles = "Admin,Librarian")]
     public async Task<ActionResult<BookDto>> RestockBook(int bookId, [FromBody] int additionalCopies)
     {
-        try
+        ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
+        if (currentUser == null)
+            return Unauthorized(new ApiResponse(401));
+
+        if (additionalCopies <= 0)
+            return BadRequest(new ApiResponse(400, "Restock copies must be greater than zero."));
+
+        // Create and dispatch Command
+        UpdateBookCopiesCommand command = new UpdateBookCopiesCommand
         {
-            BookDto bookDto = await libraryService.RestockBookAsync(bookId, additionalCopies).ConfigureAwait(false); // Changed var to BookDto
-            return Ok(bookDto);
-        }
-        catch (ArgumentException ex)
+            Id = bookId,
+            TotalCopies = additionalCopies,
+            Reason = "Restock",
+            CommandBy = currentUser.Id
+        };
+
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
+
+        if (result.IsFailure)
         {
-            return BadRequest(new ApiResponse(400, ex.Message));
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new ApiResponse(404, result.Error));
+
+            return BadRequest(new ApiResponse(400, result.Error));
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ApiResponse(400, ex.Message));
-        }
+
+        // Map result entity to DTO
+        var updatedBook = result.Value;
+        BookDto bookDto = mapper.Map<BookDto>(updatedBook);
+        return Ok(bookDto);
     }
 
     [HttpPost("mark-damaged/{bookId:int}")]
@@ -345,15 +384,28 @@ public class BooksController(
     [Authorize(Roles = "Admin,Librarian")]
     public async Task<ActionResult<BookDto>> MarkBookAsDamaged(int bookId)
     {
-        try
+        ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
+        if (currentUser == null)
+            return Unauthorized(new ApiResponse(401));
+
+  
+        UpdateBookCopiesCommand command = new UpdateBookCopiesCommand
         {
-            BookDto bookDto = await libraryService.MarkBookAsDamagedAsync(bookId).ConfigureAwait(false); // Changed var to BookDto
-            return Ok(bookDto);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ApiResponse(400, ex.Message));
-        }
+            Id = bookId,
+            TotalCopies = -1, 
+            Reason = "Damaged",
+            CommandBy = currentUser.Id
+        };
+
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
+
+        if (result.IsFailure)
+            return BadRequest(new ApiResponse(400, result.Error));
+
+        // Map result entity to DTO
+        var updatedBook = result.Value;
+        BookDto bookDto = mapper.Map<BookDto>(updatedBook);
+        return Ok(bookDto);
     }
 
     [HttpGet("overall-stats")]

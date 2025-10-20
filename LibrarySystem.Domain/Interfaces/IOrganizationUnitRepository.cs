@@ -7,6 +7,7 @@ public interface IOrganizationUnitRepository
 {
     Task<OrganizationUnit?> GetByIdAsync(int id);
     Task<OrganizationUnit?> GetByCodeAsync(string code);
+    Task<OrganizationUnit?> GetByNameAsync(string name);
     Task<IEnumerable<OrganizationUnit>> GetAllAsync();
     Task<IEnumerable<OrganizationUnit>> GetRootOrganizationUnitsAsync();
     Task<IEnumerable<OrganizationUnit>> GetChildrenAsync(int parentId);
@@ -18,4 +19,5 @@ public interface IOrganizationUnitRepository
     Task<bool> CodeExistsAsync(string code);
     Task<IEnumerable<ApplicationUser>> GetUsersInOrganizationUnitAsync(int ouId, bool includeDescendants = false);
     Task<IEnumerable<Library>> GetLibrariesInOrganizationUnitAsync(int ouId, bool includeDescendants = false);
+
 }

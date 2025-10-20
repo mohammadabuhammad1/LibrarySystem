@@ -1,6 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
+	  <Compile Remove="Dtos\OrganizationUnits\**" />
+	  <EmbeddedResource Remove="Dtos\OrganizationUnits\**" />
+	  <None Remove="Dtos\OrganizationUnits\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AutoMapper" Version="15.0.1" />
+		<PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.10">
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -13,7 +21,14 @@
 		<Compile Remove="Dtos\MemberDto.cs" />
 		<Compile Remove="Dtos\UpdateMemberDto.cs" />
 		<Compile Remove="Interfaces\IMemberService.cs" />
+		<Compile Remove="Interfaces\IOrganizationUnitCodeGenerator.cs" />
+		<Compile Remove="Interfaces\IOrganizationUnitService.cs" />
+		<Compile Remove="Interfaces\ITenantProvider.cs" />
+		<Compile Remove="Interfaces\ITenantService.cs" />
 		<Compile Remove="Services\MemberService.cs" />
+		<Compile Remove="Services\OrganizationUnitCodeGenerator.cs" />
+		<Compile Remove="Services\OrganizationUnitService.cs" />
+		<Compile Remove="Services\TenantService.cs" />
 	</ItemGroup>
 	
 	<ItemGroup>

@@ -7,6 +7,7 @@ namespace LibrarySystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+
 public class BaseApiController(UserManager<ApplicationUser> userManager) : ControllerBase
 {
     protected async Task<ApplicationUser?> GetCurrentUserAsync()

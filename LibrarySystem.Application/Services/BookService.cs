@@ -1,11 +1,12 @@
-﻿using LibrarySystem.Application.Dtos.Books;
+﻿using AutoMapper;
+using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
 namespace LibrarySystem.Application.Services;
 
-public class BookService(IUnitOfWork unitOfWork) : IBookService
+public class BookService(IUnitOfWork unitOfWork, IMapper mapper) : IBookService
 {
     public async Task<BookDto?> GetBookByIdAsync(int id)
     {
@@ -13,7 +14,7 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .GetByIdAsync(id)
             .ConfigureAwait(false);
 
-        return book == null ? null : MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
     }
 
     public async Task<IEnumerable<BookDto>> GetAllBooksAsync()
@@ -22,91 +23,8 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .GetAllAsync()
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
-    }
+        return mapper.Map<IEnumerable<BookDto>>(books);
 
-    public async Task<BookDto?> CreateBookAsync(CreateBookDto createBookDto)
-    {
-        if (createBookDto is null)
-            return null;
-
-        Book book = Book.Create(
-            createBookDto.Title,
-            createBookDto.Author,
-            createBookDto.ISBN,
-            createBookDto.PublishedYear,
-            createBookDto.TotalCopies
-        );
-
-
-        Book? createdBook = await unitOfWork.Books
-            .AddAsync(book)
-            .ConfigureAwait(false);
-
-        bool success = await unitOfWork
-            .CommitAsync()
-            .ConfigureAwait(false);
-
-        if (!success)
-            throw new InvalidOperationException("Failed to create book");
-
-        return MapToBookDto(createdBook);
-    }
-
-    public async Task<BookDto?> UpdateBookAsync(int id, UpdateBookDto updateBookDto)
-    {
-        if (updateBookDto is null)
-            return null;
-
-
-        Book? book = await unitOfWork.Books
-            .GetByIdAsync(id)
-            .ConfigureAwait(false);
-
-        if (book == null) return null;
-
-        book.UpdateDetails(
-            updateBookDto.Title,
-            updateBookDto.Author,
-            updateBookDto.ISBN,
-            updateBookDto.PublishedYear,
-            updateBookDto.TotalCopies
-        );
-
-        await unitOfWork.Books
-            .UpdateAsync(book)
-            .ConfigureAwait(false);
-
-        bool success = await unitOfWork
-            .CommitAsync()
-            .ConfigureAwait(false);
-
-        if (!success)
-            throw new InvalidOperationException("Failed to update book");
-
-        return MapToBookDto(book);
-    }
-
-    public async Task<bool> DeleteBookAsync(int id)
-    {
-        Book? book = await unitOfWork.Books
-            .GetByIdAsync(id)
-            .ConfigureAwait(false);
-
-        if (book == null) return false;
-
-        await unitOfWork.Books
-            .DeleteAsync(book)
-            .ConfigureAwait(false);
-
-        bool success = await unitOfWork
-            .CommitAsync()
-            .ConfigureAwait(false);
-
-        if (!success)
-            throw new InvalidOperationException("Failed to delete book");
-
-        return true;
     }
 
     public async Task<BookDto?> GetBookByIsbnAsync(string isbn)
@@ -115,7 +33,7 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .GetByIsbnAsync(isbn)
             .ConfigureAwait(false);
 
-        return book == null ? null : MapToBookDto(book);
+        return mapper.Map<BookDto>(book);
     }
 
     public async Task<IEnumerable<BookDto>> GetAvailableBooksAsync()
@@ -124,16 +42,15 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .GetAvailableBooksAsync()
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(books);
     }
-
     public async Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId)
     {
         IEnumerable<Book> books = await unitOfWork.Books
             .GetBooksByLibraryAsync(libraryId)
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(books);
     }
 
     public async Task<bool> BookExistsAsync(int id)
@@ -150,9 +67,8 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
             .GetBorrowedBooksByUserAsync(userId)
             .ConfigureAwait(false);
 
-        return books.Select(MapToBookDto);
+        return mapper.Map<IEnumerable<BookDto>>(books);
     }
-
 
     public async Task<OverallBookStatsDto> GetOverallBookStatsAsync()
     {
@@ -178,17 +94,92 @@ public class BookService(IUnitOfWork unitOfWork) : IBookService
 
         return stats;
     }
-    private static BookDto MapToBookDto(Book book)
-    {
-        return new BookDto
-        {
-            Id = book.Id,
-            Title = book.Title,
-            Author = book.Author,
-            ISBN = book.ISBN,
-            PublishedYear = book.PublishedYear,
-            TotalCopies = book.TotalCopies,
-            CopiesAvailable = book.CopiesAvailable
-        };
-    }
+
+    /*
+    public async Task<BookDto?> CreateBookAsync(CreateBookDto createBookDto)
+    
+        if (createBookDto is null)
+            return null
+
+        Book book = Book.Create(
+            createBookDto.Title,
+            createBookDto.Author,
+            createBookDto.ISBN,
+            createBookDto.PublishedYear,
+            createBookDto.TotalCopies
+        )
+
+
+        Book? createdBook = await unitOfWork.Books
+            .AddAsync(book)
+            .ConfigureAwait(false)
+
+        bool success = await unitOfWork
+            .CommitAsync()
+            .ConfigureAwait(false)
+
+        if (!success)
+            throw new InvalidOperationException("Failed to create book")
+
+        return mapper.Map<BookDto>(createdBook)
+    
+
+    public async Task<BookDto?> UpdateBookAsync(int id, UpdateBookDto updateBookDto)
+    
+        if (updateBookDto is null)
+            return null
+
+
+        Book? book = await unitOfWork.Books
+            .GetByIdAsync(id)
+            .ConfigureAwait(false)
+
+        if  book = = null  retur n nu ll
+
+        book.UpdateDetails(
+            updateBookDto.Title,
+            updateBookDto.Author,
+            updateBookDto.ISBN,
+            updateBookDto.PublishedYear,
+            updateBookDto.TotalCopies
+        )
+
+        await unitOfWork.Books
+            .UpdateAsync(book)
+            .ConfigureAwait(false)
+
+        bool success = await unitOfWork
+            .CommitAsync()
+            .ConfigureAwait(false)
+
+        if (!success)
+            throw new InvalidOperationException("Failed to update book")
+
+        return mapper.Map<BookDto>(book)
+    
+
+    public async Task<bool> DeleteBookAsync(int id)
+    
+        Book? book = await unitOfWork.Books
+            .GetByIdAsync(id)
+            .ConfigureAwait(false)
+
+        if book = = nu ll ret urn fa lse
+
+        await unitOfWork.Books
+            .DeleteAsync(book)
+            .ConfigureAwait(false)
+
+        bool success = await unitOfWork
+            .CommitAsync()
+            .ConfigureAwait(false)
+
+        if (!success)
+            throw new InvalidOperationException("Failed to delete book")
+
+        return true
+    */
+
+
+
 }

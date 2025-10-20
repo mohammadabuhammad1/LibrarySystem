@@ -26,6 +26,14 @@ public class OrganizationUnitRepository(LibraryDbContext context) : IOrganizatio
             .FirstOrDefaultAsync(ou => ou.Code == code).ConfigureAwait(false);
     }
 
+    public async Task<OrganizationUnit?> GetByNameAsync(string name)
+    {
+        return await context.OrganizationUnits
+            .Include(ou => ou.Parent)
+            .Include(ou => ou.Children)
+            .FirstOrDefaultAsync(ou => ou.DisplayName == name).ConfigureAwait(false);
+    }
+
     public async Task<IEnumerable<OrganizationUnit>> GetAllAsync()
     {
         return await context.OrganizationUnits
@@ -72,7 +80,6 @@ public class OrganizationUnitRepository(LibraryDbContext context) : IOrganizatio
 
     public async Task UpdateAsync(OrganizationUnit ou)
     {
-
         ArgumentNullException.ThrowIfNull(ou);
 
         ou.UpdatedAt = DateTime.UtcNow;

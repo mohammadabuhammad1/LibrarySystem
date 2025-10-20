@@ -1,7 +1,6 @@
 ﻿using LibrarySystem.Domain.Common;
-using System.Collections.ObjectModel;
 
-namespace LibrarySystem.Domain.Interfaces;
+namespace LibrarySystem.Domain.Commands;
 
 public interface ICommandHandler<TCommand> where TCommand : BaseCommand
 {
@@ -15,25 +14,26 @@ public interface ICommandDispatcher
 
 public class CommandResult
 {
-    public bool Success { get; init; }
-    public string? Message { get; init; }
-    public object? Data { get; init; }
-    public ReadOnlyCollection<string> Errors { get; }
+    public bool IsSuccess { get; }
+    public bool IsFailure => !IsSuccess;
+    public string Error { get; }
+    public object? Value { get; }
 
-    private CommandResult(bool success, string? message = null, object? data = null, IEnumerable<string>? errors = null)
+    protected CommandResult(bool isSuccess, string error, object? value = null)
     {
-        Success = success;
-        Message = message;
-        Data = data;
-        Errors = new ReadOnlyCollection<string>(errors?.ToList() ?? new List<string>());
+        if (isSuccess && !string.IsNullOrEmpty(error))
+            throw new InvalidOperationException("Success result cannot have an error");
+        if (!isSuccess && string.IsNullOrEmpty(error))
+            throw new InvalidOperationException("Failure result must have an error");
+
+        IsSuccess = isSuccess;
+        Error = error;
+        Value = value;
     }
 
-    public static CommandResult Ok(object? data = null, string? message = null)
-        => new(true, message, data);
+    public static CommandResult Ok(object? value = null)
+        => new CommandResult(true, string.Empty, value);
 
-    public static CommandResult Fail(string message, IEnumerable<string>? errors = null)
-        => new(false, message, errors: errors);
-
-    public static CommandResult ValidationFailed(IEnumerable<string> errors)
-        => new(false, "Validation failed", errors: errors);
+    public static CommandResult Fail(string error)
+        => new CommandResult(false, error);
 }

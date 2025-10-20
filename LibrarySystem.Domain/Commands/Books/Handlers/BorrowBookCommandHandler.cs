@@ -1,4 +1,5 @@
-﻿using LibrarySystem.Domain.Commands.Books;
+﻿using LibrarySystem.Domain.Commands;
+using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
@@ -8,7 +9,6 @@ public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 {
     public async Task<CommandResult> HandleAsync(BorrowBookCommand command)
     {
-
         ArgumentNullException.ThrowIfNull(command);
 
         try
@@ -20,7 +20,8 @@ public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
             if (!book.CanBorrow())
                 return CommandResult.Fail("No copies available for borrowing");
 
-            // Check if user already has this book borrowed
+            // Efficiently check for existing borrow record directly on the repository if possible, 
+            // but keeping current logic structure for minimal changes:
             IEnumerable<BorrowRecord> activeBorrows = await unitOfWork.BorrowRecords.GetActiveBorrowsByUserAsync(command.UserId).ConfigureAwait(false);
             if (activeBorrows.Any(br => br.BookId == command.BookId))
                 return CommandResult.Fail("User already has this book borrowed");
@@ -33,11 +34,14 @@ public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 
             borrowRecord.CreatedBy = command.CommandBy;
 
+            // Apply change to the tracked entity
             book.Borrow();
             book.UpdatedBy = command.CommandBy;
 
+            // Add the new record
             await unitOfWork.BorrowRecords.AddAsync(borrowRecord).ConfigureAwait(false);
-            await unitOfWork.Books.UpdateAsync(book).ConfigureAwait(false);
+
+            // REDUNDANCY REMOVED: await unitOfWork.Books.UpdateAsync(book).ConfigureAwait(false); // The change to 'book' is tracked by EF Core.
 
             var success = await unitOfWork.CommitAsync().ConfigureAwait(false);
 

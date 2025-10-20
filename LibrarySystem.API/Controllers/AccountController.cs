@@ -8,11 +8,13 @@ using LibrarySystem.Infrastructure.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LibrarySystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("AuthPolicy")]
 public class AccountController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
@@ -27,6 +29,7 @@ public class AccountController(
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
     {
         ArgumentNullException.ThrowIfNull(loginDto);
@@ -95,6 +98,7 @@ public class AccountController(
 
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<ActionResult<UserDto>> Register(RegisterDto registerDto)
     {
         ArgumentNullException.ThrowIfNull(registerDto);
@@ -156,6 +160,7 @@ public class AccountController(
 
     [HttpPost("logout")]
     [Authorize]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> Logout()
     {
         Response.Cookies.Delete("access_token");
@@ -165,6 +170,7 @@ public class AccountController(
 
     [HttpGet("emailexists")]
     [AllowAnonymous]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<bool>> CheckEmailExistsAsync([FromQuery] string email)
     {
         return await UserManager!.FindByEmailAsync(email).ConfigureAwait(false) != null;
@@ -172,6 +178,7 @@ public class AccountController(
 
     [Authorize]
     [HttpGet("me")]
+    [EnableRateLimiting("PerTenantPolicy")]
     public async Task<ActionResult<UserDto>> GetCurrentUser()
     {
         ApplicationUser? user = await GetCurrentUserAsync().ConfigureAwait(false);
@@ -312,6 +319,7 @@ public class AccountController(
 
     [Authorize(Roles = $"{UserRoles.Librarian},{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [HttpGet("users-with-borrows")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<List<UserWithBorrowsDto>>> GetUsersWithBorrows()
     {
         List<ApplicationUser> users = UserManager!.Users.ToList();
@@ -394,6 +402,7 @@ public class AccountController(
 
     [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [HttpGet("all-users")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<List<AdminUserDto>>> GetAllUsers()
     {
         List<ApplicationUser> users = UserManager!.Users.ToList();
@@ -464,6 +473,7 @@ public class AccountController(
 
     [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [HttpPost("assign-role")]
+    [EnableRateLimiting("ApiPolicy")] // Sensitive operation
     public async Task<ActionResult> AssignRoleToUser([FromBody] AssignRoleDto assignRoleDto)
     {
         ArgumentNullException.ThrowIfNull(assignRoleDto);
@@ -564,6 +574,7 @@ public class AccountController(
 
     [Authorize(Roles = UserRoles.SuperAdmin)]
     [HttpPost("create-librarian")]
+    [EnableRateLimiting("ApiPolicy")] 
     public async Task<ActionResult<UserDto>> CreateLibrarian(RegisterDto registerDto)
     {
         ArgumentNullException.ThrowIfNull(registerDto);
@@ -618,6 +629,7 @@ public class AccountController(
 
     [Authorize(Roles = UserRoles.SuperAdmin)]
     [HttpPost("create-admin")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<UserDto>> CreateAdmin(RegisterDto registerDto)
     {
         ArgumentNullException.ThrowIfNull(registerDto);

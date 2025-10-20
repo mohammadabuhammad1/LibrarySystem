@@ -11,11 +11,33 @@ public class OrganizationUnitCodeGenerator(IUnitOfWork unitOfWork) : IOrganizati
 
     public async Task<string> GenerateNextCodeAsync(int? parentId = null)
     {
-        if (parentId == null)
+        if (!parentId.HasValue)
         {
-            return await GenerateRootCodeAsync().ConfigureAwait(false);
+            var rootOus = await _ouRepository.GetRootOrganizationUnitsAsync().ConfigureAwait(false);
+            int nextNumber = rootOus.Any() ? rootOus.Max(ou => int.Parse(ou.Code)) + 1 : 1;
+            return nextNumber.ToString("D4");
         }
-        return await GenerateChildCodeAsync(parentId.Value).ConfigureAwait(false);
+        else
+        {
+            var parentOu = await _ouRepository.GetByIdAsync(parentId.Value).ConfigureAwait(false);
+            if (parentOu == null)
+                throw new InvalidOperationException($"Parent organization unit with ID {parentId} not found");
+
+            var children = await _ouRepository.GetChildrenAsync(parentId.Value).ConfigureAwait(false);
+
+            int nextChildNumber = 1;
+            if (children.Any())
+            {
+                var childNumbers = children.Select(child =>
+                {
+                    var parts = child.Code.Split('.');
+                    return int.Parse(parts[^1]); 
+                });
+                nextChildNumber = childNumbers.Max() + 1;
+            }
+
+            return $"{parentOu.Code}.{nextChildNumber:D4}";
+        }
     }
 
     private async Task<string> GenerateRootCodeAsync()

@@ -8,9 +8,6 @@ public class Library : BaseEntity
     public string Location { get; private set; } = string.Empty;
     public string? Description { get; private set; }
 
-    public int OrganizationUnitId { get; private set; }
-    public OrganizationUnit? OrganizationUnit { get; }
-
     public ICollection<Book> Books { get; private set; } = [];
 
     private Library() { }
@@ -28,7 +25,6 @@ public class Library : BaseEntity
             Name = name.Trim(),
             Location = location.Trim(),
             Description = description?.Trim(),
-            OrganizationUnitId = organizationUnitId,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -49,12 +45,5 @@ public class Library : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void AssignOrganizationUnit(int ouId)
-    {
-        if (ouId <= 0)
-            throw new ArgumentException("OrganizationUnitId must be greater than 0", nameof(ouId));
-
-        OrganizationUnitId = ouId;
-    }
 
 }
