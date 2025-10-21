@@ -8,6 +8,7 @@ public interface IBorrowRecordRepository : IGenericRepository<BorrowRecord>
     Task<BorrowRecord?> GetActiveBorrowByBookAsync(int bookId);
     Task<IEnumerable<BorrowRecord>> GetBorrowHistoryByUserAsync(string userId);
     Task<IEnumerable<BorrowRecord>> GetBorrowHistoryByBookAsync(int bookId);
+    Task<bool> HasActiveBorrowForBookAsync(string userId, int bookId);
     Task<IEnumerable<BorrowRecord>> GetOverdueBorrowsAsync();
     Task<IEnumerable<BorrowRecord>> GetOverdueBorrowsByUserAsync(string userId);
     Task<IEnumerable<BorrowRecord>> GetActiveBorrowsByUserAsync(string userId);

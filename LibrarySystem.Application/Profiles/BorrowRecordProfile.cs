@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using LibrarySystem.Application.Dtos.Books;
+using LibrarySystem.Domain.Commands.Books; // Add this using
 using LibrarySystem.Domain.Entities;
 
 namespace LibrarySystem.Application.Profiles;
@@ -26,5 +27,8 @@ public class BorrowRecordProfile : Profile
             .ForMember(dest => dest.RenewalCount, opt => opt.MapFrom(_ => 0))
             .ForMember(dest => dest.Book, opt => opt.Ignore())
             .ForMember(dest => dest.User, opt => opt.Ignore());
+
+        CreateMap<CreateBorrowRecordDto, BorrowBookCommand>()
+            .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
     }
 }

@@ -9,29 +9,34 @@ public class BookRepository(LibraryDbContext context) : GenericRepository<Book>(
 {
     public async Task<Book?> GetByIsbnAsync(string isbn)
     {
-        return await Context.Set<Book>().FirstOrDefaultAsync(b => b.ISBN == isbn).ConfigureAwait(false);
+        return await context.Set<Book>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.ISBN == isbn).ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<Book>> GetAvailableBooksAsync()
     {
-        return await Context.Set<Book>()
+        return await context.Set<Book>()
+            .AsNoTracking()
             .Where(b => b.CopiesAvailable > 0)
             .ToListAsync().ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<Book>> GetBooksByLibraryAsync(int libraryId)
     {
-        return await Context.Set<Book>()
+        return await context.Set<Book>()
+            .AsNoTracking()
             .Where(b => b.LibraryId == libraryId)
             .ToListAsync().ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<Book>> GetBorrowedBooksByUserAsync(string userId)
     {
-        return await Context.Set<Book>()
+        return await context.Set<Book>()
+            .AsNoTracking()
             .Where(b => b.BorrowRecords.Any(br =>
                 br.UserId == userId &&
-                br.ReturnDate == null)) // Only active borrows
+                br.ReturnDate == null)) 
             .ToListAsync().ConfigureAwait(false);
     }
 }

@@ -12,6 +12,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using static System.Net.Mime.MediaTypeNames;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -198,8 +199,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<RoleSeeder>();
 
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
-
+builder.Services.AddAutoMapper(typeof(LibrarySystem.Application.Dtos.Books.BookDto).Assembly);
 // ✅ DATA SEEDING
 builder.Services.AddScoped<DataSeeder>();
 builder.Services.AddScoped<DatabaseInitializer>();

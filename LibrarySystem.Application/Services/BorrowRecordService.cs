@@ -1,4 +1,5 @@
-﻿using LibrarySystem.Application.Dtos.Books;
+﻿using AutoMapper;
+using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
@@ -8,7 +9,8 @@ namespace LibrarySystem.Application.Services;
 
 public class BorrowRecordService(
     IUnitOfWork unitOfWork,
-    UserManager<ApplicationUser> userManager) : IBorrowRecordService
+    UserManager<ApplicationUser> userManager,
+    IMapper mapper) : IBorrowRecordService
 {
     private const decimal FINE_PER_DAY = 0.50m;
     private const int MAX_RENEWAL_DAYS = 30;
@@ -33,7 +35,7 @@ public class BorrowRecordService(
             throw new InvalidOperationException($"User {user.Name} is not active.");
 
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(borrowDto.BookId)
+            .GetByIdTrackedAsync(borrowDto.BookId)
             .ConfigureAwait(false);
 
         if (book == null)
@@ -42,12 +44,24 @@ public class BorrowRecordService(
         if (!book.CanBorrow())
             throw new InvalidOperationException($"No copies available for '{book.Title}'.");
 
+        // Rule Enforcement: Check for existing active borrow
         BorrowRecord? existingBorrow = await unitOfWork.BorrowRecords
             .GetActiveBorrowByBookAndUserAsync(borrowDto.BookId, borrowDto.UserId)
             .ConfigureAwait(false);
 
         if (existingBorrow != null)
             throw new InvalidOperationException($"User already has '{book.Title}' borrowed.");
+
+        // Rule Enforcement: Check for Overdue Books and Borrow Limit
+        IEnumerable<BorrowRecord> activeBorrows = await unitOfWork.BorrowRecords
+            .GetActiveBorrowsByUserAsync(borrowDto.UserId)
+            .ConfigureAwait(false);
+
+        if (activeBorrows.Any(b => b.IsOverdue()))
+            throw new InvalidOperationException("User has one or more overdue books and cannot borrow until they are returned.");
+
+        if (activeBorrows.Count() >= MAX_BORROW_LIMIT)
+            throw new InvalidOperationException($"User has reached the maximum borrowing limit of {MAX_BORROW_LIMIT} books.");
 
         BorrowRecord borrowRecord = BorrowRecord.Create(
             borrowDto.BookId,
@@ -61,6 +75,8 @@ public class BorrowRecordService(
 
         book.Borrow();
 
+        // NOTE: unitOfWork.Books.UpdateAsync(book) is redundant if 'book' is tracked,
+        // but often kept for clarity/safety. We'll leave it in your current structure.
         await unitOfWork.Books
             .UpdateAsync(book)
             .ConfigureAwait(false);
@@ -76,7 +92,7 @@ public class BorrowRecordService(
             .GetBorrowRecordWithDetailsAsync(createdRecord.Id)
             .ConfigureAwait(false);
 
-        return MapToBorrowRecordDto(createdRecord!);
+        return mapper.Map<BorrowRecordDto>(createdRecord);
     }
 
     public async Task<BorrowRecordDto> ReturnBookAsync(ReturnBookDto returnDto)
@@ -94,20 +110,21 @@ public class BorrowRecordService(
             throw new InvalidOperationException($"No active borrow record found for Book {returnDto.BookId} and User {returnDto.UserId}");
 
         decimal? fineAmount = returnDto.FineAmount;
-        if (fineAmount == null && DateTime.UtcNow > borrowRecord.DueDate)
+        if (fineAmount == null)
         {
-            var daysOverdue = (DateTime.UtcNow - borrowRecord.DueDate).Days;
-            fineAmount = daysOverdue * FINE_PER_DAY;
+            fineAmount = borrowRecord.CalculateFine(FINE_PER_DAY);
         }
 
         borrowRecord.ReturnBook(fineAmount, returnDto.Notes, returnDto.Condition);
 
+        // NOTE: UpdateAsync is often redundant for tracked entities but kept here for consistency
         await unitOfWork.BorrowRecords
             .UpdateAsync(borrowRecord)
             .ConfigureAwait(false);
 
+        // 2. Retrieve Book as a TRACKED entity for modification (book.Return())
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(returnDto.BookId)
+            .GetByIdTrackedAsync(returnDto.BookId)
             .ConfigureAwait(false);
 
         if (book != null)
@@ -129,19 +146,19 @@ public class BorrowRecordService(
             .GetBorrowRecordWithDetailsAsync(borrowRecord.Id)
             .ConfigureAwait(false);
 
-        return MapToBorrowRecordDto(borrowRecord!);
+        return mapper.Map<BorrowRecordDto>(borrowRecord);
     }
+
     public async Task<IEnumerable<BorrowRecordDto>> GetUserBorrowHistoryAsync(string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID cannot be null or empty", nameof(userId));
 
-
         IEnumerable<BorrowRecord> records = await unitOfWork.BorrowRecords
             .GetBorrowHistoryByUserAsync(userId)
             .ConfigureAwait(false);
 
-        return records.Select(MapToBorrowRecordDto);
+        return mapper.Map<IEnumerable<BorrowRecordDto>>(records);
     }
 
     public async Task<IEnumerable<BorrowRecordDto>> GetOverdueBooksAsync()
@@ -150,7 +167,7 @@ public class BorrowRecordService(
             GetOverdueBorrowsAsync()
             .ConfigureAwait(false);
 
-        return overdueRecords.Select(MapToBorrowRecordDto);
+        return mapper.Map<IEnumerable<BorrowRecordDto>>(overdueRecords);
     }
 
     public async Task<IEnumerable<BorrowRecordDto>> GetActiveBorrowsByUserAsync(string userId)
@@ -159,7 +176,7 @@ public class BorrowRecordService(
             .GetActiveBorrowsByUserAsync(userId)
             .ConfigureAwait(false);
 
-        return activeBorrows.Select(MapToBorrowRecordDto);
+        return mapper.Map<IEnumerable<BorrowRecordDto>>(activeBorrows);
     }
 
     public async Task<decimal> CalculateFineAsync(int borrowRecordId)
@@ -196,7 +213,7 @@ public class BorrowRecordService(
             .GetBorrowHistoryByBookAsync(bookId)
             .ConfigureAwait(false);
 
-        return records.Select(MapToBorrowRecordDto);
+        return mapper.Map<IEnumerable<BorrowRecordDto>>(records);
     }
 
     public async Task<BorrowRecordDto> RenewBorrowAsync(int borrowRecordId, int additionalDays, string userId)
@@ -234,7 +251,6 @@ public class BorrowRecordService(
             throw new InvalidOperationException($"Maximum renewal count ({MAX_RENEWAL_COUNT}) reached for this book.");
 
         DateTime newDueDate = borrowRecord.DueDate.AddDays(additionalDays);
-
         string renewalNotes = $"Renewed on {DateTime.UtcNow:yyyy-MM-dd}, new due date: {newDueDate:yyyy-MM-dd}";
         borrowRecord.Renew(newDueDate, renewalNotes);
 
@@ -247,13 +263,11 @@ public class BorrowRecordService(
         if (!success)
             throw new InvalidOperationException("Failed to renew borrow record.");
 
-        return MapToBorrowRecordDto(borrowRecord);
+        return mapper.Map<BorrowRecordDto>(borrowRecord);
     }
-
 
     public async Task<IEnumerable<BookDto>> GetBorrowedBooksByUserAsync(string userId)
     {
-
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID cannot be null or empty", nameof(userId));
 
@@ -261,18 +275,11 @@ public class BorrowRecordService(
             .GetActiveBorrowsByUserAsync(userId)
             .ConfigureAwait(false);
 
-        return activeBorrows
-                   .Where(borrowRecord => borrowRecord.Book != null)
-                   .Select(borrowRecord => new BookDto
-                   {
-                       Id = borrowRecord.Book!.Id,
-                       Title = borrowRecord.Book.Title,
-                       Author = borrowRecord.Book.Author,
-                       ISBN = borrowRecord.Book.ISBN,
-                       PublishedYear = borrowRecord.Book.PublishedYear,
-                       TotalCopies = borrowRecord.Book.TotalCopies,
-                       CopiesAvailable = borrowRecord.Book.CopiesAvailable
-                   });
+        // Map the Book property of each BorrowRecord to a BookDto
+        // We assume the repository method eager-loaded the Book navigation property.
+        return mapper.Map<IEnumerable<BookDto>>(activeBorrows
+            .Where(b => b.Book != null)
+            .Select(b => b.Book!));
     }
 
     public async Task<bool> CanUserBorrowAsync(string userId)
@@ -281,17 +288,12 @@ public class BorrowRecordService(
         if (user == null || !user.IsActive)
             return false;
 
-        IEnumerable<BorrowRecord> overdueBooks = await unitOfWork.BorrowRecords
-            .GetOverdueBorrowsAsync()
-            .ConfigureAwait(false);
-
-        IEnumerable<BorrowRecord> userOverdueBooks = overdueBooks.Where(b => b.UserId == userId);
-        if (userOverdueBooks.Any())
-            return false;
-
         IEnumerable<BorrowRecord> activeBorrows = await unitOfWork.BorrowRecords
             .GetActiveBorrowsByUserAsync(userId)
             .ConfigureAwait(false);
+
+        if (activeBorrows.Any(b => b.IsOverdue()))
+            return false;
 
         if (activeBorrows.Count() >= MAX_BORROW_LIMIT)
             return false;
@@ -308,28 +310,6 @@ public class BorrowRecordService(
         if (activeBorrow == null)
             return null;
 
-        return MapToBorrowRecordDto(activeBorrow);
-    }
-    private static BorrowRecordDto MapToBorrowRecordDto(BorrowRecord record)
-    {
-        return new BorrowRecordDto
-        {
-            Id = record.Id,
-            BookId = record.BookId,
-            UserId = record.UserId,
-            BookTitle = record.Book?.Title ?? string.Empty,
-            UserName = record.User?.Name ?? string.Empty,
-            BorrowDate = record.BorrowDate,
-            DueDate = record.DueDate,
-            ReturnDate = record.ReturnDate,
-            IsReturned = record.IsReturned,
-            FineAmount = record.FineAmount,
-            Notes = record.Notes,
-            Condition = record.Condition,
-            IsOverdue = record.IsOverdue(),
-            DaysOverdue = record.DaysOverdue(),
-            RenewalCount = record.RenewalCount,
-            ConditionDescription = record.ConditionDescription
-        };
+        return mapper.Map<BorrowRecordDto>(activeBorrow);
     }
 }

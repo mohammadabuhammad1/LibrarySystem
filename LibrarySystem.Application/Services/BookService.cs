@@ -44,6 +44,7 @@ public class BookService(IUnitOfWork unitOfWork, IMapper mapper) : IBookService
 
         return mapper.Map<IEnumerable<BookDto>>(books);
     }
+
     public async Task<IEnumerable<BookDto>> GetBooksByLibraryAsync(int libraryId)
     {
         IEnumerable<Book> books = await unitOfWork.Books

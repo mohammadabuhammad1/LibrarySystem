@@ -1,4 +1,5 @@
-﻿using LibrarySystem.Application.Dtos.Roles;
+﻿using AutoMapper;
+using LibrarySystem.Application.Dtos.Roles;
 using LibrarySystem.Application.Interfaces;
 using LibrarySystem.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -6,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LibrarySystem.API.Services;
 
-public class RoleService(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager) : IRoleService
+public class RoleService(
+    RoleManager<IdentityRole> roleManager,
+    UserManager<ApplicationUser> userManager,
+    IMapper mapper) : IRoleService
 {
     public async Task<IdentityResult> CreateRoleAsync(string roleName)
     {
@@ -71,12 +75,8 @@ public class RoleService(RoleManager<IdentityRole> roleManager, UserManager<Appl
             .ToListAsync()
             .ConfigureAwait(false);
 
-        return roles.Select(role => new RoleDto
-        {
-            Id = role.Id,
-            Name = role.Name ?? string.Empty,
-            NormalizedName = role.NormalizedName ?? string.Empty
-        }).ToList();
+        return mapper.Map<List<RoleDto>>(roles);
+
     }
 
     public async Task<List<UserRoleDto>> GetUsersInRoleAsync(string roleName)
@@ -85,12 +85,7 @@ public class RoleService(RoleManager<IdentityRole> roleManager, UserManager<Appl
             .GetUsersInRoleAsync(roleName)
             .ConfigureAwait(false);
 
-        return usersInRole.Select(user => new UserRoleDto
-        {
-            UserId = user.Id,
-            UserName = user.Name,
-            Email = user.Email ?? string.Empty
-        }).ToList();
+        return mapper.Map<List<UserRoleDto>>(usersInRole);
     }
 
     public async Task<IdentityResult> DeleteRoleAsync(string roleName)
@@ -99,7 +94,9 @@ public class RoleService(RoleManager<IdentityRole> roleManager, UserManager<Appl
             .FindByNameAsync(roleName)
             .ConfigureAwait(false);
 
-        return role == null ? throw new InvalidOperationException("Role not found") : await roleManager
+        return role == null
+            ? throw new InvalidOperationException("Role not found")
+            : await roleManager
             .DeleteAsync(role)
             .ConfigureAwait(false);
     }

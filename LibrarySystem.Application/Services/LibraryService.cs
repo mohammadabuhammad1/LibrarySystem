@@ -11,7 +11,7 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
     public async Task<BookDto> BorrowBookAsync(int bookId)
     {
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(bookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book == null)
@@ -35,14 +35,11 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
     public async Task<BookDto> ReturnBookAsync(int bookId)
     {
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(bookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book == null)
             throw new InvalidOperationException($"Book with ID {bookId} not found.");
-
-        if (book.CopiesAvailable >= book.TotalCopies)
-            throw new InvalidOperationException($"'{book.Title}' is not currently borrowed.");
 
         book.Return();
 
@@ -73,7 +70,7 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
             .ConfigureAwait(false);
 
         IEnumerable<Book> borrowedBooks = allBooks
-            .Where(book => book.CanBorrow());
+                    .Where(book => book.BorrowedCopiesCount > 0);
 
         return mapper.Map<IEnumerable<BookDto>>(borrowedBooks); 
     }
@@ -90,7 +87,7 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
     public async Task<BookDto> MarkBookAsDamagedAsync(int bookId)
     {
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(bookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book == null)
@@ -111,7 +108,7 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
     public async Task<BookDto> RestockBookAsync(int bookId, int additionalCopies)
     {
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(bookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book == null)
@@ -144,10 +141,15 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
 
     public async Task<OverallBookStatsDto> GetOverallBooksStats()
     {
-        IEnumerable<Book> allBooks = await unitOfWork.Books.GetAllAsync().ConfigureAwait(false);
-        IEnumerable<Library> allLibraries = await unitOfWork.Libraries.GetAllAsync().ConfigureAwait(false);
+        IEnumerable<Book> allBooks = await unitOfWork.Books
+            .GetAllAsync()
+            .ConfigureAwait(false);
 
-        var stats = new OverallBookStatsDto
+        IEnumerable<Library> allLibraries = await unitOfWork.Libraries
+            .GetAllAsync()
+            .ConfigureAwait(false);
+
+        OverallBookStatsDto stats = new OverallBookStatsDto
         {
             TotalBooks = allBooks.Count(),
             TotalCopies = allBooks.Sum(b => b.TotalCopies),
@@ -176,7 +178,7 @@ public class LibraryService(IUnitOfWork unitOfWork, IMapper mapper) : ILibrarySe
             throw new InvalidOperationException($"Library with ID {libraryId} not found");
 
         Book? book = await unitOfWork.Books
-            .GetByIdAsync(bookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book == null)

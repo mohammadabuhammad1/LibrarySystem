@@ -2,6 +2,8 @@
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
+using System;
+using System.Threading.Tasks; // Added to explicitly include Task
 
 namespace LibrarySystem.Application.Commands.Books.Handlers;
 
@@ -13,17 +15,19 @@ public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 
         try
         {
-            Book? book = await unitOfWork.Books.GetByIdAsync(command.BookId).ConfigureAwait(false);
+            Book? book = await unitOfWork.Books.GetByIdTrackedAsync(command.BookId).ConfigureAwait(false);
+
             if (book == null)
                 return CommandResult.Fail($"Book with ID {command.BookId} not found");
 
             if (!book.CanBorrow())
                 return CommandResult.Fail("No copies available for borrowing");
 
-            // Efficiently check for existing borrow record directly on the repository if possible, 
-            // but keeping current logic structure for minimal changes:
-            IEnumerable<BorrowRecord> activeBorrows = await unitOfWork.BorrowRecords.GetActiveBorrowsByUserAsync(command.UserId).ConfigureAwait(false);
-            if (activeBorrows.Any(br => br.BookId == command.BookId))
+            bool alreadyBorrowed = await unitOfWork.BorrowRecords
+                .HasActiveBorrowForBookAsync(command.UserId, command.BookId)
+                .ConfigureAwait(false);
+
+            if (alreadyBorrowed)
                 return CommandResult.Fail("User already has this book borrowed");
 
             var borrowRecord = BorrowRecord.Create(
@@ -34,14 +38,11 @@ public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 
             borrowRecord.CreatedBy = command.CommandBy;
 
-            // Apply change to the tracked entity
             book.Borrow();
             book.UpdatedBy = command.CommandBy;
 
             // Add the new record
             await unitOfWork.BorrowRecords.AddAsync(borrowRecord).ConfigureAwait(false);
-
-            // REDUNDANCY REMOVED: await unitOfWork.Books.UpdateAsync(book).ConfigureAwait(false); // The change to 'book' is tracked by EF Core.
 
             var success = await unitOfWork.CommitAsync().ConfigureAwait(false);
 

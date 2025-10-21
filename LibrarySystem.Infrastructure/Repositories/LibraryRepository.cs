@@ -9,8 +9,10 @@ public class LibraryRepository(LibraryDbContext context) : GenericRepository<Lib
 {
     public async Task<Library?> GetByNameAsync(string name)
     {
-        return await Context.Set<Library>()
-            .FirstOrDefaultAsync(l => l.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).ConfigureAwait(false);
+        return await context.Set<Library>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(l => l.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            .ConfigureAwait(false);
 
         //  Uses StringComparison.OrdinalIgnoreCase for case-insensitive comparison
         //  No string allocation (unlike ToLower/ToUpper which create new strings)
@@ -22,7 +24,8 @@ public class LibraryRepository(LibraryDbContext context) : GenericRepository<Lib
 
     public async Task<IEnumerable<Library>> GetLibrariesWithBooksAsync()
     {
-        return await Context.Set<Library>()
+        return await context.Set<Library>()
+            .AsNoTracking()
             .Include(l => l.Books)
             .ToListAsync().ConfigureAwait(false);
     }

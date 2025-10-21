@@ -1,17 +1,17 @@
 ﻿using LibrarySystem.Domain.Interfaces;
 using LibrarySystem.Infrastructure.Data;
-using LibrarySystem.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Linq;
 
 namespace LibrarySystem.Infrastructure.Repositories;
 
 public sealed class UnitOfWork(LibraryDbContext context) : IUnitOfWork
 {
-    private IDbContextTransaction? _transaction;
-
     public IBookRepository Books { get; } = new BookRepository(context);
     public IBorrowRecordRepository BorrowRecords { get; } = new BorrowRecordRepository(context);
     public ILibraryRepository Libraries { get; } = new LibraryRepository(context);
+
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -22,38 +22,33 @@ public sealed class UnitOfWork(LibraryDbContext context) : IUnitOfWork
     {
         try
         {
-            _transaction = await context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            var result = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false) > 0;
-            await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return result;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return true;
         }
-        catch
+        catch (DbUpdateConcurrencyException ex)
         {
-            if (_transaction != null)
-            {
-                await _transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            }
-            throw;
+            Console.WriteLine($"Database concurrency error: {ex.Message}");
+            return false;
         }
-        finally
+        catch (InvalidOperationException ex)
         {
-            if (_transaction != null)
-            {
-                await _transaction.DisposeAsync().ConfigureAwait(false);
-                _transaction = null;
-            }
+            Console.WriteLine($"Database commit failed: {ex.Message}");
+            return false;
         }
     }
 
     public void Rollback()
     {
-        _transaction?.Rollback();
+        foreach (EntityEntry? entry in context.ChangeTracker.Entries()
+            .Where(e => e.State != EntityState.Unchanged && e.State != EntityState.Detached))
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 
     public void Dispose()
     {
-        _transaction?.Dispose();
-        context?.Dispose();
+        context.Dispose();
         GC.SuppressFinalize(this);
     }
 }
