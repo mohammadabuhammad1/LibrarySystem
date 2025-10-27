@@ -2,10 +2,9 @@
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
-using System;
-using System.Threading.Tasks; // Added to explicitly include Task
 
-namespace LibrarySystem.Application.Commands.Books.Handlers;
+
+namespace LibrarySystem.Application.Commands.Handlers.Books;
 
 public class BorrowBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<BorrowBookCommand>
 {

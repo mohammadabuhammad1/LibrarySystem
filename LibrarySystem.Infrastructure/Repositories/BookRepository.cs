@@ -7,6 +7,7 @@ namespace LibrarySystem.Infrastructure.Repositories;
 
 public class BookRepository(LibraryDbContext context) : GenericRepository<Book>(context), IBookRepository
 {
+    private readonly LibraryDbContext context = context;
     public async Task<Book?> GetByIsbnAsync(string isbn)
     {
         return await context.Set<Book>()

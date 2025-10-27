@@ -28,7 +28,7 @@ public class Book : BaseEntity
     private Book() { }
 
     public static Book Create(string title, string author, string isbn, int publishedYear,
-        int totalCopies, int? libraryId = null, string? description = null, string? genre = null)
+        int totalCopies, string? description = null, string? genre = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title is required", nameof(title));
@@ -50,51 +50,79 @@ public class Book : BaseEntity
             PublishedYear = publishedYear,
             TotalCopies = totalCopies,
             CopiesAvailable = totalCopies,
-            LibraryId = libraryId,
             Description = description,
             Genre = genre,
             CreatedAt = DateTime.UtcNow
         };
 
-        book.AddDomainEvent(new BookCreatedEvent(book.Id, book.Title, book.ISBN));
+        book.AddDomainEvent(new BookCreatedEvent(book.Id, book.Title, book.ISBN, book.Description , book.Genre));
 
         return book;
     }
 
     public void Update(
-        string title,
-        string author,
-        int publishedYear,
-        int totalCopies,
-        string? description = null,
-        string? genre = null)
+    string? title,          
+    string? author,         
+    int? publishedYear,     
+    int? totalCopies,       
+    string? description,    
+    string? genre)          
     {
-        if (string.IsNullOrWhiteSpace(title))
-            throw new ArgumentNullException(nameof(title), "Title is required");
 
-        if (string.IsNullOrWhiteSpace(author))
-            throw new ArgumentNullException(nameof(author), "Author is required");
 
-        if (publishedYear <= 0 || publishedYear > DateTime.UtcNow.Year + 1)
-            throw new ArgumentException("Published year must be valid", nameof(publishedYear));
-
-        if (totalCopies < 0)
-            throw new ArgumentException("Total copies cannot be negative", nameof(totalCopies));
-
-        Title = title.Trim();
-        Author = author.Trim();
-        PublishedYear = publishedYear;
-        Description = description?.Trim();
-        Genre = genre?.Trim();
-
-        if (totalCopies != TotalCopies)
+        // Update Title if provided (not null/empty)
+        if (!string.IsNullOrWhiteSpace(title))
         {
-            var diff = totalCopies - TotalCopies;
-            TotalCopies = totalCopies;
-            CopiesAvailable = Math.Max(0, CopiesAvailable + diff);
+            this.Title = title.Trim();
+        }
+
+        // Update Author if provided (not null/empty)
+        if (!string.IsNullOrWhiteSpace(author))
+        {
+            this.Author = author.Trim();
+        }
+
+        // Update PublishedYear if provided (HasValue)
+        if (publishedYear.HasValue)
+        {
+            var newYear = publishedYear.Value;
+            if (newYear <= 0 || newYear > DateTime.UtcNow.Year + 1)
+                throw new ArgumentException("Published year must be valid", nameof(publishedYear));
+
+            PublishedYear = newYear;
+        }
+
+
+        if (description != null)
+        {
+            Description = description.Trim();
+        }
+
+        if (genre != null)
+        {
+            Genre = genre.Trim();
+        }
+
+        if (totalCopies.HasValue)
+        {
+            var newTotalCopies = totalCopies.Value;
+
+            if (newTotalCopies < 0)
+                throw new ArgumentException("Total copies cannot be negative", nameof(totalCopies));
+
+            if (newTotalCopies < (TotalCopies - CopiesAvailable))
+                throw new InvalidOperationException("New total copies cannot be less than the number of currently borrowed copies.");
+
+            if (newTotalCopies != TotalCopies)
+            {
+                var diff = newTotalCopies - TotalCopies;
+                TotalCopies = newTotalCopies;
+                CopiesAvailable = Math.Max(0, CopiesAvailable + diff);
+            }
         }
 
         UpdatedAt = DateTime.UtcNow;
+
     }
 
     public void UpdateCopies(int totalCopies, string? reason = null)

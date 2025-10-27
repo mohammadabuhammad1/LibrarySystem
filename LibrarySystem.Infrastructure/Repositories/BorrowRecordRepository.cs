@@ -8,6 +8,8 @@ namespace LibrarySystem.Infrastructure.Repositories;
 
 public class BorrowRecordRepository(LibraryDbContext context) : GenericRepository<BorrowRecord>(context), IBorrowRecordRepository
 {
+    private readonly LibraryDbContext context = context;
+
     public async Task<IEnumerable<BorrowRecord>> GetActiveBorrowsByUserAsync(string userId)
     {
         return await context.Set<BorrowRecord>()

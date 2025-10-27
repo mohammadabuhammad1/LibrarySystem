@@ -15,7 +15,7 @@ namespace LibrarySystem.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-[EnableRateLimiting("ApiPolicy")]
+[EnableRateLimiting("AuthPolicy")]
 public class BooksController(
     IBookService bookService,
     IBorrowRecordService borrowRecordService,
@@ -109,6 +109,11 @@ public class BooksController(
             if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
                 return NotFound(new ApiResponse(404, result.Error));
 
+            if (result.Error.StartsWith("Validation failed:", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new ApiResponse(400, result.Error));
+            }
+
             return BadRequest(new ApiResponse(400, result.Error));
         }
 
@@ -117,7 +122,6 @@ public class BooksController(
 
         return Ok(bookDto);
     }
-
     [HttpDelete("DeleteBook/{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -144,6 +148,9 @@ public class BooksController(
 
         return NoContent();
     }
+
+
+    //All the above bug free
 
     [HttpGet("isbn/{isbn}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -224,7 +231,7 @@ public class BooksController(
 
     [HttpGet("my-borrowed-books")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [EnableRateLimiting("PerTenantPolicy")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BookDto>>> GetMyBorrowedBooks()
     {
         string? currentUserId = GetCurrentUserId();
@@ -241,7 +248,7 @@ public class BooksController(
 
     [HttpGet("my-active-borrows")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [EnableRateLimiting("PerTenantPolicy")] 
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BorrowRecordDto>>> GetMyActiveBorrows()
     {
         string? currentUserId = GetCurrentUserId();

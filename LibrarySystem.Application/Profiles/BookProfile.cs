@@ -10,9 +10,10 @@ public class BookProfile : Profile
     public BookProfile()
     {
         // Existing entity mappings
-        CreateMap<Book, BookDto>()
-            .ForMember(dest => dest.LibraryId, opt => opt.MapFrom(src => src.LibraryId ?? 0));
+        CreateMap<Book, BookDto>();
 
+        // Mapping from CreateBookDto to Book entity (likely for the DTO model/view, but not used 
+        // in the provided controller logic which uses the Command pattern)
         CreateMap<CreateBookDto, Book>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.TotalCopies, opt => opt.MapFrom(src => src.TotalCopies))
@@ -25,6 +26,7 @@ public class BookProfile : Profile
             .ForMember(dest => dest.Library, opt => opt.Ignore())
             .ForMember(dest => dest.BorrowRecords, opt => opt.Ignore());
 
+        // Mapping from UpdateBookDto to Book entity
         CreateMap<UpdateBookDto, Book>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CopiesAvailable, opt => opt.Ignore())
@@ -36,17 +38,12 @@ public class BookProfile : Profile
             .ForMember(dest => dest.Library, opt => opt.Ignore())
             .ForMember(dest => dest.BorrowRecords, opt => opt.Ignore());
 
-        // NEW: Command mappings with ignored properties
         CreateMap<CreateBookDto, CreateBookCommand>()
-            .ForMember(dest => dest.LibraryId, opt => opt.Ignore())     
-            .ForMember(dest => dest.Description, opt => opt.Ignore())   
-            .ForMember(dest => dest.Genre, opt => opt.Ignore())         
             .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
 
         CreateMap<UpdateBookDto, UpdateBookCommand>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.Description, opt => opt.Ignore())
-            .ForMember(dest => dest.Genre, opt => opt.Ignore())
+
             .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
     }
 }

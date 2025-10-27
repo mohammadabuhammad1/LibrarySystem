@@ -3,7 +3,7 @@ using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
-namespace LibrarySystem.Application.Commands.Books.Handlers;
+namespace LibrarySystem.Application.Commands.Handlers.Books;
 
 public class UpdateBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<UpdateBookCommand>
 {
@@ -14,7 +14,7 @@ public class UpdateBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
 
         try
         {
-            Book? book = await unitOfWork.Books.GetByIdAsync(command.Id).ConfigureAwait(false);
+            Book? book = await unitOfWork.Books.GetByIdTrackedAsync(command.Id).ConfigureAwait(false);
             if (book == null)
                 return CommandResult.Fail($"Book with ID {command.Id} not found");
 

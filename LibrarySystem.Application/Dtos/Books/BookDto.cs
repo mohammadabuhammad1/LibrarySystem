@@ -9,5 +9,6 @@ public class BookDto
     public int PublishedYear { get; set; }
     public int TotalCopies { get; set; }
     public int CopiesAvailable { get; set; }
-    public int LibraryId { get; set; }
+    public string? Description { get; set; }
+    public string? Genre { get; set; }
 }

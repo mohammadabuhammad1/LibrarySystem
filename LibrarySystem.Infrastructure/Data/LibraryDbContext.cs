@@ -17,11 +17,15 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
 
         base.OnModelCreating(builder);
 
+        builder.Entity<Book>().HasQueryFilter(b => !b.IsDeleted);
+        builder.Entity<Library>().HasQueryFilter(l => !l.IsDeleted);
+        builder.Entity<BorrowRecord>().HasQueryFilter(br => !br.IsDeleted);
+
         // ApplicationUser config
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.MembershipDate).IsRequired().HasDefaultValueSql("NOW()");
             entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
         });
@@ -48,45 +52,18 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
             entity.Property(e => e.TotalCopies).IsRequired();
             entity.Property(e => e.CopiesAvailable).IsRequired();
             entity.HasIndex(e => e.ISBN).IsUnique();
-            entity.HasOne(b => b.Library).WithMany(l => l.Books).HasForeignKey(b => b.LibraryId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(b => b.Library)
+                  .WithMany(l => l.Books)
+                  .HasForeignKey(b => b.LibraryId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("NOW()");
         });
 
+        // BorrowRecord config (single configuration)
         builder.Entity<BorrowRecord>(entity =>
         {
             entity.HasKey(br => br.Id);
 
-            entity.HasOne(br => br.Book)
-                .WithMany(b => b.BorrowRecords)
-                .HasForeignKey(br => br.BookId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(br => br.User)
-                .WithMany(u => u.BorrowRecords)
-                .HasForeignKey(br => br.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.Property(br => br.BookId).IsRequired();
-            entity.Property(br => br.UserId).IsRequired().HasMaxLength(450);
-            entity.Property(br => br.BorrowDate).IsRequired();
-            entity.Property(br => br.DueDate).IsRequired();
-            entity.Property(br => br.IsReturned).IsRequired();
-            entity.Property(br => br.FineAmount).HasPrecision(18, 2);
-            entity.Property(br => br.Notes).HasMaxLength(1000);
-
-            entity.Property(br => br.Condition)
-                .HasConversion<string>()
-                .HasMaxLength(20);
-        });
-
-        builder.Entity<ApplicationUser>(entity =>
-        {
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Phone).HasMaxLength(50);
-        });
-
-        builder.Entity<BorrowRecord>(entity =>
-        {
             // Configure relationships
             entity.HasOne(br => br.Book)
                 .WithMany(b => b.BorrowRecords)
@@ -98,12 +75,18 @@ public class LibraryDbContext(DbContextOptions<LibraryDbContext> options) : Iden
                 .HasForeignKey(br => br.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure properties with private setters
+            // Configure properties
             entity.Property(br => br.BookId).IsRequired();
-            entity.Property(br => br.UserId).IsRequired();
+            entity.Property(br => br.UserId).IsRequired().HasMaxLength(450);
             entity.Property(br => br.BorrowDate).IsRequired();
             entity.Property(br => br.DueDate).IsRequired();
             entity.Property(br => br.IsReturned).IsRequired();
+            entity.Property(br => br.FineAmount).HasPrecision(18, 2);
+            entity.Property(br => br.Notes).HasMaxLength(1000);
+
+            entity.Property(br => br.Condition)
+                .HasConversion<string>()
+                .HasMaxLength(20);
         });
     }
 }

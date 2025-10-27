@@ -8,9 +8,29 @@ public abstract class BaseEntity
     public string? CreatedBy { get; set; }
     public string? UpdatedBy { get; set; }
 
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeleteBy { get; set; }
+
     // Domain Events collection for DDD
     private readonly List<IDomainEvent> _domainEvents = new();
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
+    public void Restore(string? restoredBy = null)
+    {
+        IsDeleted = false;
+        DeletedAt = null;
+        DeleteBy = null;
+        UpdatedAt = DateTime.UtcNow;
+        UpdatedBy = restoredBy;
+    }
+    public void MarkAsDeleted(string? deletedBy = null)
+    {
+        IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
+        DeleteBy = deletedBy;
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     public void AddDomainEvent(IDomainEvent eventItem)
     {

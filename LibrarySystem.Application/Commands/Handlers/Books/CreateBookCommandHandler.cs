@@ -3,7 +3,7 @@ using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
-namespace LibrarySystem.Application.Commands.Books.Handlers;
+namespace LibrarySystem.Application.Commands.Handlers.Books;
 
 public class CreateBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<CreateBookCommand>
 {
@@ -24,7 +24,6 @@ public class CreateBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
                 command.ISBN,
                 command.PublishedYear,
                 command.TotalCopies,
-                command.LibraryId,
                 command.Description,
                 command.Genre);
 

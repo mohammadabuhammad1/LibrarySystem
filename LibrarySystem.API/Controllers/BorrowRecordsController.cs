@@ -10,7 +10,7 @@ namespace LibrarySystem.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-[EnableRateLimiting("PerTenantPolicy")]
+[EnableRateLimiting("AuthPolicy")]
 public class BorrowRecordsController(IBorrowRecordService borrowRecordService) : ControllerBase
 {
     [HttpPost("BorrowBook")]
@@ -44,7 +44,7 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
     [HttpGet("MemberBorrowHistory/{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin,Librarian,Member")]
-    [EnableRateLimiting("PerTenantPolicy")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<IEnumerable<BorrowRecordDto>>> GetUserBorrowHistory(string userId)
     {
         if (User.IsInRole("Member") && User.Identity?.Name != userId)

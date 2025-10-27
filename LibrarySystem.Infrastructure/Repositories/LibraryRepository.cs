@@ -7,6 +7,8 @@ namespace LibrarySystem.Infrastructure.Repositories;
 
 public class LibraryRepository(LibraryDbContext context) : GenericRepository<Library>(context), ILibraryRepository
 {
+    private readonly LibraryDbContext context = context;
+
     public async Task<Library?> GetByNameAsync(string name)
     {
         return await context.Set<Library>()

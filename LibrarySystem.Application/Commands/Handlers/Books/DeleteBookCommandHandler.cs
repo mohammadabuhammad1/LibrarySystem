@@ -2,9 +2,8 @@
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
-using System.Globalization;
 
-namespace LibrarySystem.Application.Commands.Books.Handlers;
+namespace LibrarySystem.Application.Commands.Handlers.Books;
 
 public class DeleteBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<DeleteBookCommand>
 {
@@ -15,22 +14,22 @@ public class DeleteBookCommandHandler(IUnitOfWork unitOfWork) : ICommandHandler<
         try
         {
             Book? book = await unitOfWork.Books
-                .GetByIdAsync(command.Id)
+                .GetByIdTrackedAsync(command.Id)
                 .ConfigureAwait(false);
+
             if (book == null)
                 return CommandResult.Fail($"Book with ID {command.Id} not found");
 
-            // Check if book has active borrows
-            IEnumerable<Book> borrowedBooks = await unitOfWork.Books
-                .GetBorrowedBooksByUserAsync(command.Id.ToString(CultureInfo.InvariantCulture))
+            // Check if book has active borrows - FIXED: Method returns single record, not collection
+            BorrowRecord? activeBorrow = await unitOfWork.BorrowRecords
+                .GetActiveBorrowByBookAsync(command.Id)
                 .ConfigureAwait(false);
 
-            if (borrowedBooks.Any())
+            if (activeBorrow != null)
                 return CommandResult.Fail("Cannot delete book with active borrows");
 
-            await unitOfWork.Books
-                .DeleteAsync(book)
-                .ConfigureAwait(false);
+            // Soft delete
+            book.MarkAsDeleted(command.CommandBy);
 
             var success = await unitOfWork
                 .CommitAsync()

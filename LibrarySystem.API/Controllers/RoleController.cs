@@ -13,7 +13,7 @@ namespace LibrarySystem.API.Controllers;
 [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
 [ApiController]
 [Route("api/[controller]")]
-[EnableRateLimiting("ApiPolicy")]
+[EnableRateLimiting("AuthPolicy")]
 public class RolesController(
     IRoleService roleService,
     UserManager<ApplicationUser> userManager) : BaseApiController(userManager)

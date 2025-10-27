@@ -178,7 +178,7 @@ public class AccountController(
 
     [Authorize]
     [HttpGet("me")]
-    [EnableRateLimiting("PerTenantPolicy")]
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult<UserDto>> GetCurrentUser()
     {
         ApplicationUser? user = await GetCurrentUserAsync().ConfigureAwait(false);
@@ -473,7 +473,7 @@ public class AccountController(
 
     [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.SuperAdmin}")]
     [HttpPost("assign-role")]
-    [EnableRateLimiting("ApiPolicy")] // Sensitive operation
+    [EnableRateLimiting("ApiPolicy")]
     public async Task<ActionResult> AssignRoleToUser([FromBody] AssignRoleDto assignRoleDto)
     {
         ArgumentNullException.ThrowIfNull(assignRoleDto);

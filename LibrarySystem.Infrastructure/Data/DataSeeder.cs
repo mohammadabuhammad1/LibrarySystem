@@ -86,16 +86,15 @@ public partial class DataSeeder(LibraryDbContext context, ILogger<DataSeeder> lo
                         "Harper Lee",
                         "9780061120084",
                         1960,
-                        10,
-                        library.Id
+                        10
                     ),
                     Book.Create(
                         "1984",
                         "George Orwell",
                         "9780451524935",
                         1949,
-                        5,
-                        library.Id
+                        5
+
                     )
                 };
 

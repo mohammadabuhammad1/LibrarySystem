@@ -12,7 +12,7 @@ public class GenericRepository<T>(LibraryDbContext context) : IGenericRepository
     {
         return await context.Set<T>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.Id == id)
+            .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted)
             .ConfigureAwait(false);
     }
 
@@ -20,6 +20,7 @@ public class GenericRepository<T>(LibraryDbContext context) : IGenericRepository
     {
         return await context.Set<T>()
             .AsNoTracking()
+            .Where(e => !e.IsDeleted)
             .ToListAsync()
             .ConfigureAwait(false);
     }
@@ -29,6 +30,7 @@ public class GenericRepository<T>(LibraryDbContext context) : IGenericRepository
         ArgumentNullException.ThrowIfNull(entity);
 
         entity.CreatedAt = DateTime.UtcNow;
+        entity.IsDeleted = false;
         await context.Set<T>().AddAsync(entity).ConfigureAwait(false);
         return entity;
     }
@@ -46,17 +48,30 @@ public class GenericRepository<T>(LibraryDbContext context) : IGenericRepository
     {
         ArgumentNullException.ThrowIfNull(entity);
 
-        context.Set<T>().Remove(entity);
+        entity.MarkAsDeleted();
+        context.Set<T>().Update(entity);
         await context.SaveChangesAsync().ConfigureAwait(false);
     }
 
     public async Task<bool> ExistsAsync(int id)
     {
-        return await context.Set<T>().AnyAsync(e => e.Id == id).ConfigureAwait(false);
+        return await context.Set<T>()
+            .AnyAsync(e => e.Id == id && !e.IsDeleted)
+            .ConfigureAwait(false);
     }
 
     public async Task<T?> GetByIdTrackedAsync(int id)
     {
-        return await context.Set<T>().FindAsync(id).ConfigureAwait(false);
+        return await context.Set<T>()
+            .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<T?> GetByIdIncludingDeletedAsync(int id)
+    {
+        return await context.Set<T>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id)
+            .ConfigureAwait(false);
     }
 }

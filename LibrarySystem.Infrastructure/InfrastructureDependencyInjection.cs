@@ -1,8 +1,8 @@
-﻿using LibrarySystem.Application.Commands.Books.Handlers;
+﻿using LibrarySystem.Application.Commands.Handlers;
+using LibrarySystem.Application.Commands.Handlers.Books;
 using LibrarySystem.Domain.Commands;
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Interfaces;
-using LibrarySystem.Infrastructure.Commands;
 using LibrarySystem.Infrastructure.Data;
 using LibrarySystem.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -37,7 +37,6 @@ public static class InfrastructureDependencyInjection
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
 
         return services;
     }

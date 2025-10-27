@@ -3,7 +3,7 @@ using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
 using LibrarySystem.Domain.Interfaces;
 
-namespace LibrarySystem.Application.Commands.Books.Handlers;
+namespace LibrarySystem.Application.Commands.Handlers.Books;
 
 public class UpdateBookCopiesCommandHandler(IUnitOfWork unitOfWork)
     : ICommandHandler<UpdateBookCopiesCommand>

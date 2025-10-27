@@ -2,7 +2,7 @@
 using LibrarySystem.Domain.Common;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LibrarySystem.Infrastructure.Commands;
+namespace LibrarySystem.Application.Commands.Handlers;
 
 public class CommandDispatcher(IServiceProvider serviceProvider) : ICommandDispatcher
 {

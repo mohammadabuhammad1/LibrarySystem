@@ -11,7 +11,7 @@ namespace LibrarySystem.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-[EnableRateLimiting("PerTenantPolicy")]
+[EnableRateLimiting("AuthPolicy")]
 public class LibraryBooksController(ILibraryService libraryService) : ControllerBase
 {
     [HttpGet("GetBooksByLibrary/{libraryId}")]
