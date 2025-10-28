@@ -27,19 +27,19 @@ public class BorrowRecordsController(IBorrowRecordService borrowRecordService) :
         return Ok(borrowRecord);
     }
 
-    [HttpPost("ReturnBook")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin,Librarian")]
-    [EnableRateLimiting("ApiPolicy")]
-    public async Task<ActionResult<BorrowRecordDto>> ReturnBook([FromBody] ReturnBookDto returnDto)
-    {
-        BorrowRecordDto borrowRecord = await borrowRecordService
-            .ReturnBookAsync(returnDto)
-            .ConfigureAwait(false);
+    //[HttpPost("ReturnBook")]
+    //[ProducesResponseType(StatusCodes.Status200OK)]
+    //[ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    //[Authorize(Roles = "Admin,Librarian")]
+    //[EnableRateLimiting("ApiPolicy")]
+    //public async Task<ActionResult<BorrowRecordDto>> ReturnBook([FromBody] ReturnBookDto returnDto)
+    //
+    //    BorrowRecordDto borrowRecord = await borrowRecordService
+    //        .ReturnBookAsync(returnDto)
+    //        .ConfigureAwait(false)
 
-        return Ok(borrowRecord);
-    }
+    //    return Ok(borrowRecord)
+    //
 
     [HttpGet("MemberBorrowHistory/{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]

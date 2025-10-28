@@ -30,5 +30,8 @@ public class BorrowRecordProfile : Profile
 
         CreateMap<CreateBorrowRecordDto, BorrowBookCommand>()
             .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
+
+        CreateMap<ReturnBookDto, ReturnBookCommand>()
+            .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
     }
 }

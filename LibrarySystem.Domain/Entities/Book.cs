@@ -1,5 +1,6 @@
 ﻿using LibrarySystem.Domain.Common;
 using LibrarySystem.Domain.Common.DomainEvents;
+using LibrarySystem.Domain.ValueObjects;
 
 namespace LibrarySystem.Domain.Entities;
 
@@ -42,11 +43,13 @@ public class Book : BaseEntity
         if (totalCopies <= 0)
             throw new ArgumentException("Total copies must be greater than 0", nameof(totalCopies));
 
+        Isbn validatedIsbn = Isbn.Create(isbn);
+
         var book = new Book
         {
             Title = title.Trim(),
             Author = author.Trim(),
-            ISBN = isbn.Trim(),
+            ISBN = validatedIsbn.Value, 
             PublishedYear = publishedYear,
             TotalCopies = totalCopies,
             CopiesAvailable = totalCopies,
@@ -125,16 +128,6 @@ public class Book : BaseEntity
 
     }
 
-    public void UpdateCopies(int totalCopies, string? reason = null)
-    {
-        if (totalCopies < 0)
-            throw new ArgumentException("Total copies cannot be negative", nameof(totalCopies));
-
-        var diff = totalCopies - TotalCopies;
-        TotalCopies = totalCopies;
-        CopiesAvailable = Math.Max(0, CopiesAvailable + diff);
-        UpdatedAt = DateTime.UtcNow;
-    }
     public bool CanBorrow()
     {
         return CopiesAvailable > 0;
@@ -161,6 +154,16 @@ public class Book : BaseEntity
 
         TotalCopies--;
         CopiesAvailable = Math.Max(0, CopiesAvailable - 1);
+        UpdatedAt = DateTime.UtcNow;
+    }
+    public void UpdateCopies(int totalCopies)
+    {
+        if (totalCopies < 0)
+            throw new ArgumentException("Total copies cannot be negative", nameof(totalCopies));
+
+        var diff = totalCopies - TotalCopies;
+        TotalCopies = totalCopies;
+        CopiesAvailable = Math.Max(0, CopiesAvailable + diff);
         UpdatedAt = DateTime.UtcNow;
     }
     public void Restock(int additionalCopies)
@@ -197,9 +200,11 @@ public class Book : BaseEntity
         if (totalCopies < 0)
             throw new ArgumentException("Total copies cannot be negative.", nameof(totalCopies));
 
+        Isbn validatedIsbn = Isbn.Create(isbn);
+
         Title = title;
         Author = author;
-        ISBN = isbn;
+        ISBN = validatedIsbn.Value;
         PublishedYear = publishedYear;
         TotalCopies = totalCopies;
 

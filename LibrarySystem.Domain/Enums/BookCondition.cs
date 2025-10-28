@@ -1,5 +1,8 @@
-﻿namespace LibrarySystem.Domain.Enums;
+﻿using System.Text.Json.Serialization;
 
+namespace LibrarySystem.Domain.Enums;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BookCondition
 {
     none = 0,

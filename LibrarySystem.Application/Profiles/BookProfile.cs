@@ -12,8 +12,18 @@ public class BookProfile : Profile
         // Existing entity mappings
         CreateMap<Book, BookDto>();
 
-        // Mapping from CreateBookDto to Book entity (likely for the DTO model/view, but not used 
-        // in the provided controller logic which uses the Command pattern)
+        // Add this mapping for BookStatsDto
+        CreateMap<Book, BookStatsDto>()
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
+            .ForMember(dest => dest.TotalCopies, opt => opt.MapFrom(src => src.TotalCopies))
+            .ForMember(dest => dest.CopiesAvailable, opt => opt.MapFrom(src => src.CopiesAvailable))
+            .ForMember(dest => dest.BorrowedCopiesCount, opt => opt.MapFrom(src => src.BorrowedCopiesCount))
+            .ForMember(dest => dest.UtilizationRate, opt => opt.MapFrom(src => src.UtilizationRate))
+            .ForMember(dest => dest.IsAvailable, opt => opt.MapFrom(src => src.IsAvailable))
+            .ForMember(dest => dest.IsOutOfStock, opt => opt.MapFrom(src => src.IsOutOfStock));
+
+        // Mapping from CreateBookDto to Book entity
         CreateMap<CreateBookDto, Book>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.TotalCopies, opt => opt.MapFrom(src => src.TotalCopies))
@@ -43,7 +53,6 @@ public class BookProfile : Profile
 
         CreateMap<UpdateBookDto, UpdateBookCommand>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
-
             .ForMember(dest => dest.CommandBy, opt => opt.Ignore());
     }
 }

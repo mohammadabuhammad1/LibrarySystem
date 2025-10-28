@@ -2,13 +2,15 @@
 using LibrarySystem.API.Errors;
 using LibrarySystem.Application.Dtos.Books;
 using LibrarySystem.Application.Interfaces;
+using LibrarySystem.Application.Queries.Handlers;
+using LibrarySystem.Domain.Commands;
+using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Entities;
+using LibrarySystem.Domain.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using LibrarySystem.Domain.Commands.Books; 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using LibrarySystem.Domain.Commands;
 
 namespace LibrarySystem.API.Controllers;
 
@@ -22,6 +24,7 @@ public class BooksController(
     ILibraryService libraryService,
     UserManager<ApplicationUser> userManager,
     ICommandDispatcher dispatcher,
+    IQueryDispatcher queryDispatcher,
     IMapper mapper)
     : BaseApiController(userManager)
 {
@@ -106,15 +109,14 @@ public class BooksController(
 
         if (result.IsFailure)
         {
-            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                return NotFound(new ApiResponse(404, result.Error));
-
-            if (result.Error.StartsWith("Validation failed:", StringComparison.OrdinalIgnoreCase))
+            return result.Error switch
             {
-                return BadRequest(new ApiResponse(400, result.Error));
-            }
-
-            return BadRequest(new ApiResponse(400, result.Error));
+                string error when error.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                    => NotFound(new ApiResponse(404, result.Error)),
+                string error when error.StartsWith("Validation failed:", StringComparison.OrdinalIgnoreCase)
+                    => BadRequest(new ApiResponse(400, result.Error)),
+                _ => BadRequest(new ApiResponse(400, result.Error))
+            };
         }
 
         var updatedBook = result.Value;
@@ -149,23 +151,60 @@ public class BooksController(
         return NoContent();
     }
 
-
-    //All the above bug free
-
     [HttpGet("isbn/{isbn}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [AllowAnonymous]
     public async Task<ActionResult<BookDto>> GetBookByIsbn(string isbn)
     {
-        BookDto? book = await bookService
-            .GetBookByIsbnAsync(isbn)
-            .ConfigureAwait(false);
+        GetBookByIsbnQuery query = new (isbn);
+        QueryResult<BookDto?> result = await queryDispatcher.DispatchAsync<GetBookByIsbnQuery, BookDto?>(query).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            return result.Error.Contains("Invalid ISBN", StringComparison.OrdinalIgnoreCase)
+                ? BadRequest(new ApiResponse(400, result.Error))
+                : NotFound(new ApiResponse(404, result.Error));
+        }
 
-        if (book == null)
-            return NotFound(new ApiResponse(404, $"Book with ISBN {isbn} not found"));
+        return Ok(result.Data);
+    }
 
-        return Ok(book);
+    [HttpPost("restock/{bookId:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Librarian")]
+    public async Task<ActionResult<BookDto>> RestockBook(int bookId, [FromBody] int additionalCopies)
+    {
+        ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
+        if (currentUser == null)
+            return Unauthorized(new ApiResponse(401));
+
+        if (additionalCopies <= 0)
+            return BadRequest(new ApiResponse(400, "Restock copies must be greater than zero."));
+
+        // Create and dispatch Command
+        UpdateBookCopiesCommand command = new()
+        {
+            Id = bookId,
+            TotalCopies = additionalCopies,
+            CommandBy = currentUser.Id
+        };
+
+        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new ApiResponse(404, result.Error));
+
+            return BadRequest(new ApiResponse(400, result.Error));
+        }
+
+        // Map result entity to DTO
+        var updatedBook = result.Value;
+        BookDto bookDto = mapper.Map<BookDto>(updatedBook);
+        return Ok(bookDto);
     }
 
     [HttpGet("available")]
@@ -204,22 +243,6 @@ public class BooksController(
 
         return Ok(exists);
     }
-
-    [HttpPatch("{id:int}/update-copies")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin,Librarian")]
-    public async Task<ActionResult<BookDto>> UpdateBookCopies(int id, [FromBody] UpdateBookCopiesDto updateDto)
-    {
-        ArgumentNullException.ThrowIfNull(updateDto);
-
-        if (updateDto.AdditionalCopies > 0)
-            return await RestockBook(id, updateDto.AdditionalCopies).ConfigureAwait(false);
-
-        return BadRequest(new ApiResponse(400, "Use the dedicated 'mark-damaged' endpoint to reduce copies, or specify a positive number for 'restock'."));
-    }
-
     [HttpGet("stats/{bookId:int}")] 
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
@@ -301,11 +324,20 @@ public class BooksController(
         return Ok(recordDto);
     }
 
-    [HttpPost("return/{bookId}")]
+    [HttpGet("overall-stats")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin,Librarian")]
-    [EnableRateLimiting("ApiPolicy")]
+    [AllowAnonymous]
+    public async Task<ActionResult<OverallBookStatsDto>> GetOverallBooksStats()
+    {
+        OverallBookStatsDto stats = await bookService.GetOverallBookStatsAsync().ConfigureAwait(false);
+        return Ok(stats);
+    }
+    //All the above bug free
+
+
+
+
+    [HttpPost("{bookId:int}/return")]
     public async Task<ActionResult<BorrowRecordDto>> ReturnBook(int bookId, [FromBody] ReturnBookDto returnDto)
     {
         ArgumentNullException.ThrowIfNull(returnDto);
@@ -314,19 +346,27 @@ public class BooksController(
         if (currentUser == null)
             return Unauthorized(new ApiResponse(401));
 
-        // Create and dispatch Command
-        ReturnBookCommand command = mapper.Map<ReturnBookCommand>(returnDto);
-        command.BookId = bookId;
-        command.CommandBy = currentUser.Id; // The user processing the return
+        ReturnBookCommand command = new()
+        {
+            BookId = bookId,
+            UserId = returnDto.UserId,
+            Notes = returnDto.Notes,
+            Condition = returnDto.Condition,
+            FineAmount = returnDto.FineAmount,
+            CommandBy = currentUser.Id 
+        };
 
         CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
 
         if (result.IsFailure)
+        {
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(new ApiResponse(404, result.Error));
             return BadRequest(new ApiResponse(400, result.Error));
+        }
 
         var borrowRecord = result.Value;
         BorrowRecordDto recordDto = mapper.Map<BorrowRecordDto>(borrowRecord);
-
         return Ok(recordDto);
     }
 
@@ -347,44 +387,6 @@ public class BooksController(
         return Ok(totalFines);
     }
 
-    [HttpPost("restock/{bookId:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin,Librarian")]
-    public async Task<ActionResult<BookDto>> RestockBook(int bookId, [FromBody] int additionalCopies)
-    {
-        ApplicationUser? currentUser = await GetCurrentUserAsync().ConfigureAwait(false);
-        if (currentUser == null)
-            return Unauthorized(new ApiResponse(401));
-
-        if (additionalCopies <= 0)
-            return BadRequest(new ApiResponse(400, "Restock copies must be greater than zero."));
-
-        // Create and dispatch Command
-        UpdateBookCopiesCommand command = new UpdateBookCopiesCommand
-        {
-            Id = bookId,
-            TotalCopies = additionalCopies,
-            Reason = "Restock",
-            CommandBy = currentUser.Id
-        };
-
-        CommandResult result = await dispatcher.DispatchAsync(command).ConfigureAwait(false);
-
-        if (result.IsFailure)
-        {
-            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                return NotFound(new ApiResponse(404, result.Error));
-
-            return BadRequest(new ApiResponse(400, result.Error));
-        }
-
-        // Map result entity to DTO
-        var updatedBook = result.Value;
-        BookDto bookDto = mapper.Map<BookDto>(updatedBook);
-        return Ok(bookDto);
-    }
-
     [HttpPost("mark-damaged/{bookId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
@@ -396,7 +398,7 @@ public class BooksController(
             return Unauthorized(new ApiResponse(401));
 
   
-        UpdateBookCopiesCommand command = new UpdateBookCopiesCommand
+        UpdateBookCopiesCommand command = new()
         {
             Id = bookId,
             TotalCopies = -1, 
@@ -413,14 +415,5 @@ public class BooksController(
         var updatedBook = result.Value;
         BookDto bookDto = mapper.Map<BookDto>(updatedBook);
         return Ok(bookDto);
-    }
-
-    [HttpGet("overall-stats")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [AllowAnonymous]
-    public async Task<ActionResult<OverallBookStatsDto>> GetOverallBooksStats()
-    {
-        OverallBookStatsDto stats = await bookService.GetOverallBookStatsAsync().ConfigureAwait(false);
-        return Ok(stats);
     }
 }

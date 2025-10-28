@@ -14,11 +14,11 @@ public class UpdateBookCopiesCommandHandler(IUnitOfWork unitOfWork)
 
         try
         {
-            Book? book = await unitOfWork.Books.GetByIdAsync(command.Id).ConfigureAwait(false);
+            Book? book = await unitOfWork.Books.GetByIdTrackedAsync(command.Id).ConfigureAwait(false);
             if (book is null)
                 return CommandResult.Fail($"Book with ID {command.Id} not found");
 
-            book.UpdateCopies(command.TotalCopies, command.Reason);
+            book.Restock(command.TotalCopies);
             book.UpdatedBy = command.CommandBy;
 
             var success = await unitOfWork.CommitAsync().ConfigureAwait(false);

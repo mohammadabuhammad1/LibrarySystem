@@ -1,8 +1,11 @@
 ﻿using LibrarySystem.Application.Commands.Handlers;
 using LibrarySystem.Application.Commands.Handlers.Books;
+using LibrarySystem.Application.Dtos.Books;
+using LibrarySystem.Application.Queries.Handlers;
 using LibrarySystem.Domain.Commands;
 using LibrarySystem.Domain.Commands.Books;
 using LibrarySystem.Domain.Interfaces;
+using LibrarySystem.Domain.Queries;
 using LibrarySystem.Infrastructure.Data;
 using LibrarySystem.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +34,10 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<ICommandHandler<UpdateBookCopiesCommand>, UpdateBookCopiesCommandHandler>();
         services.AddScoped<ICommandHandler<BorrowBookCommand>, BorrowBookCommandHandler>();
         services.AddScoped<ICommandHandler<ReturnBookCommand>, ReturnBookCommandHandler>();
+
+        // Query Handlers
+        services.AddScoped<IQueryHandler<GetBookByIsbnQuery, BookDto?>, GetBookByIsbnQueryHandler>();
+        services.AddScoped<IQueryDispatcher, QueryDispatcher>();
 
         // Command Dispatcher
         services.AddScoped<ICommandDispatcher, CommandDispatcher>();

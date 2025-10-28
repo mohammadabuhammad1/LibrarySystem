@@ -95,7 +95,7 @@ public class BorrowRecordService(
         return mapper.Map<BorrowRecordDto>(createdRecord);
     }
 
-    public async Task<BorrowRecordDto> ReturnBookAsync(ReturnBookDto returnDto)
+    public async Task<BorrowRecordDto> ReturnBookAsync(int bookId, ReturnBookDto returnDto)
     {
         ArgumentNullException.ThrowIfNull(returnDto);
 
@@ -103,11 +103,11 @@ public class BorrowRecordService(
             throw new ArgumentException("User ID cannot be null or empty", returnDto.UserId);
 
         BorrowRecord? borrowRecord = await unitOfWork.BorrowRecords
-            .GetActiveBorrowByBookAndUserAsync(returnDto.BookId, returnDto.UserId)
+            .GetActiveBorrowByBookAndUserAsync(bookId, returnDto.UserId)
             .ConfigureAwait(false);
 
         if (borrowRecord == null)
-            throw new InvalidOperationException($"No active borrow record found for Book {returnDto.BookId} and User {returnDto.UserId}");
+            throw new InvalidOperationException($"No active borrow record found for Book {bookId} and User {returnDto.UserId}");
 
         decimal? fineAmount = returnDto.FineAmount;
         if (fineAmount == null)
@@ -124,7 +124,7 @@ public class BorrowRecordService(
 
         // 2. Retrieve Book as a TRACKED entity for modification (book.Return())
         Book? book = await unitOfWork.Books
-            .GetByIdTrackedAsync(returnDto.BookId)
+            .GetByIdTrackedAsync(bookId)
             .ConfigureAwait(false);
 
         if (book != null)
